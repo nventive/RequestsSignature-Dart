@@ -1,53 +1,78 @@
-# Open Source Project Template
+# HMAC Signed requests in dart
 
-This repository contains a template to seed a repository for an Open Source
-project.
-
-## How to use this template
-
-1. Check out this repository
-2. Delete the `.git` folder
-3. Git init this repository and start working on your project!
-4. Prior to submitting your request for publication, make sure to review the
-   [Open Source guidelines for publications](https://nventive.visualstudio.com/Internal/_wiki/wikis/Internal_wiki?wikiVersion=GBwikiMaster&pagePath=%2FOpen%20Source%2FPublishing&pageId=7120).
-
-## Features (to keep as-is, configure or remove)
-- [Mergify](https://mergify.io/) is configured. You can edit or remove [.mergify.yml](/.mergify.yml).
-
-The following is the template for the final README.md file:
-
----
-
-# Project Title
-
-{Project tag line}
-
-{Small description of the purpose of the project}
-
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-
-## Getting Started
-
-{Instructions to quickly get started using the project: pre-requisites, packages
-to install, sample code, etc.}
+This Dart package provides a convenient way to make HTTP requests with HMAC authentication. HMAC (Hash-based Message Authentication Code) authentication is a mechanism for verifying the authenticity of a message using a cryptographic hash function and a secret key.
 
 ## Features
 
-{More details/listing of features of the project}
+- Supports HMAC authentication for secure requests in HTTP and HTTPS.
+- Core Encryption Algorithm is SHA-256.
+- Provides classes for GET, POST, PUT, and DELETE requests with HMAC authentication.
+- Easily configurable and customizable for different APIs.
+- Depends on [crypto](https://pub.dev/packages/crypto) and [http](https://pub.dev/packages/http).
+
+## Installation
+
+### Use this package as a library.
+
+Depend on it
+
+##### Run this command:
+
+```
+flutter pub add requests_signature_dart
+```
+
+This will add a line like this to your package's `pubspec.yaml` (and run an implicit `flutter pub get`):
+
+```
+dependencies:
+  request_signature_dart: ^1.0.0
+```
+Alternatively, your editor might support `flutter pub get`. Check the docs for your editor to learn more.
+
+##### Import it 
+
+in your dart code:
+
+```
+import 'package:requests_signature_dart/request_signature_dart.dart';
+```
+
+## Usage
+
+### In your dart code
+
+```
+import 'package:requests_signature_dart/requests_signature_dart.dart';
+
+void main() async {
+  // Initialize SignedHMACRequest with your API key and secret
+  final signedRequest = SignedHMACRequest(apiKey, apiSecret);
+
+  // Make a GET request
+  final getRequest = signedRequest.get('https://api.example.com/endpoint');
+  final getResponse = await getRequest.send();
+  print(getResponse.body);
+
+  // Make a POST request
+  final postRequest = signedRequest.post('https://api.example.com/endpoint');
+  final postResponse = await postRequest.send(body: {'key': 'value'});
+  print(postResponse.body);
+
+  // Similar usage for PUT and DELETE requests
+}
+
+```
 
 ## Breaking Changes
 
-Please consult [BREAKING_CHANGES.md](BREAKING_CHANGES.md) for more information about version
-history and compatibility.
+Please consult [BREAKING_CHANGES.md](BREAKING_CHANGES.md) for more information about version.
 
 ## License
 
-This project is licensed under the Apache 2.0 license - see the
-[LICENSE](LICENSE) file for details.
+This project is licensed under the Apache 2.0 [License](LICENSE) - see the LICENSE file for details.
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on the process for
-contributing to this project.
-
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on the process for contributing to this project.
 Be mindful of our [Code of Conduct](CODE_OF_CONDUCT.md).
