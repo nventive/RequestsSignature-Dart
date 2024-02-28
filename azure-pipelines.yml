@@ -1,0 +1,141 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+variables:
+  package_version: 0.0.2
+
+trigger:
+  branches:
+    include:
+      - main
+pr:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+
+- script: echo $PATH
+  displayName: Check PATH environment variable
+
+- task: Hey24sheep.flutter.flutter-install.FlutterInstall@0  
+  displayName: 'Flutter Install'
+
+- task: gitversion/setup@0
+  inputs:
+    versionSpec: '5.10.1'
+  displayName: 'Install GitVersion'
+
+- task: gitversion/execute@0
+  inputs:
+    useConfigFile: true
+    configFilePath: $(Build.SourcesDirectory)/build/gitversion.yml
+  displayName: 'Calculate version'
+
+- script: |
+    echo "The calculated version is $(GitVersion.SemVer)"
+  displayName: 'Display Calculated Version'  
+
+# - task: UseDotNet@2
+#   displayName: 'Install .NET Core SDK'
+#   inputs:
+#     packageType: sdk
+#     version: '3.x'
+
+# - script: dotnet tool install --global GitVersion.Tool
+#   displayName: 'Install GitVersion'
+
+# - script: |
+#     dotnet gitversion
+#   displayName: 'Calculate version'
+
+# - script: |
+#     dotnet gitversion /output json > version.json
+#   displayName: 'Calculate version'
+
+# - script: |
+#     cat version.json
+#   displayName: 'Display Calculated Version'  
+
+# - task: UseDotNet@2
+#   displayName: 'Install .NET Core SDK'
+#   inputs:
+#     packageType: sdk
+#     version: '3.x'
+
+# - script: dotnet tool install --global GitVersion.Tool
+#   displayName: 'Install GitVersion'
+
+# - script: |
+#     dotnet gitversion /output buildserver /showvariable GitVersion.MajorMinorPatch
+#   displayName: 'Calculate version'
+
+# - script: |
+#     echo "The calculated version is $(GitVersion.MajorMinorPatch)"
+#   displayName: 'Display Calculated Version'
+
+
+# - task: gitversion/execute@0
+#   inputs:
+#     useConfigFile: false
+#   displayName: 'Calculate version'
+
+
+
+# - task: gitversion/setup@0
+#   inputs:
+#     versionSpec: '5.10.1'
+#   displayName: 'Install GitVersion'
+
+# - task: gitversion/execute@0
+#   displayName: 'Calculate version'
+
+# - script: |
+#     echo "The calculated version is $(GitVersion.Output)"
+#   displayName: 'Display Calculated Version'
+
+- powershell: |
+    ((Get-Content -Path pubspec.yaml) -replace "{{package_version}}", "$(GitVersion.SemVer)") | Set-Content -Path pubspec.yaml
+  displayName: Replace version powershell command 
+
+
+# - script: |
+#     latest_tag=$(git describe --tags $(git rev-list --tags --max-count=1))
+#     echo "Latest Tag: $latest_tag"
+#   displayName: Setting version number 
+
+- script :  flutter doctor
+  displayName : Run flutter doctor
+
+- script: flutter pub get
+  displayName: Install dependencies
+
+- script: flutter analyze
+  displayName: Analyze code
+
+- script: flutter test
+  displayName: Run tests
+
+- script: flutter pub publish --dry-run
+  displayName: 'Run flutter pub publish --dry-run'
+
+- script: |
+    flutter pub publish --access-token $(PUB_DEV_TOKEN)
+  displayName: Publish to pub.dev
+  env:
+    PUB_DEV_TOKEN: $(PUB_DEV_TOKEN)  # Use the secure variable
+
+- publish: $(System.DefaultWorkingDirectory)/build/artifacts
+  displayName: Publish artifacts
+
+
+
+  
+
+
+
