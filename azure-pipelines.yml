@@ -20,8 +20,8 @@ steps:
 
 - script: echo $PATH
   displayName: Check PATH environment variable
-- bash: |
-
+- bash:
+ 
 git clone https://github.com/flutter/flutter.git
 
 export PATH=`pwd`/flutter/bin:$PATH
