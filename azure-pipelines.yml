@@ -17,33 +17,28 @@
 #     echo Add other tasks to build, test, and deploy your project.
 #     echo See https://aka.ms/yaml
 #   displayName: 'Run a multi-line script'
-name: Publish to pub.dev
+trigger:
+- main
 
-on:
-  pull_request:
-    branches:
-      - main
+pool:
+  vmImage: ubuntu-latest
 
-jobs:
-  publish:
-    if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+steps:
+- script: flutter pub get
+  displayName: Install dependencies
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '2.x'
+- script: flutter analyze
+  displayName: Analyze code
 
-      - name: Get dependencies
-        run: flutter pub get
-      
-      - name: Analyzing Dart code 
-      - run: flutter analyze
+- script: flutter test
+  displayName: Run tests
 
-      - name: Publish to pub.dev
-        run: flutter pub publish --dry-run
-        env:
-          PUB_DEV_TOKEN: ${{ secrets.PUB_DEV_TOKEN }}
+- script: |
+    flutter pub publish --access-token $(PUB_DEV_TOKEN)
+  displayName: Publish to pub.dev
+  env:
+    PUB_DEV_TOKEN: $(PUB_DEV_TOKEN)  # Use the secure variable
+
+- publish: $(System.DefaultWorkingDirectory)/build/artifacts
+  displayName: Publish artifacts
+
