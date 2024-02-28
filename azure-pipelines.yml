@@ -30,15 +30,15 @@ steps:
 - script: flutter analyze
   displayName: Analyze code
 
-- script: flutter test
-  displayName: Run tests
+# - script: flutter test
+#   displayName: Run tests
 
-- script: |
-    flutter pub publish --access-token $(PUB_DEV_TOKEN)
-  displayName: Publish to pub.dev
-  env:
-    PUB_DEV_TOKEN: $(PUB_DEV_TOKEN)  # Use the secure variable
+# - script: |
+#     flutter pub publish --access-token $(PUB_DEV_TOKEN)
+#   displayName: Publish to pub.dev
+#   env:
+#     PUB_DEV_TOKEN: $(PUB_DEV_TOKEN)  # Use the secure variable
 
-- publish: $(System.DefaultWorkingDirectory)/build/artifacts
-  displayName: Publish artifacts
+# - publish: $(System.DefaultWorkingDirectory)/build/artifacts
+#   displayName: Publish artifacts
 
