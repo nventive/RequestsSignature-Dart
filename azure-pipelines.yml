@@ -23,7 +23,7 @@ trigger:
 pool:
   vmImage: ubuntu-latest
 
-# steps:
+steps:
 # - script: flutter pub get
 #   displayName: Install dependencies
 
