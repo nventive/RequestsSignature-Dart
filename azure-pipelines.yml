@@ -20,6 +20,19 @@ steps:
 
 - script: echo $PATH
   displayName: Check PATH environment variable
+- bash: |
+
+git clone https://github.com/flutter/flutter.git
+
+export PATH=`pwd`/flutter/bin:$PATH
+
+flutter channel stable
+
+flutter doctor
+
+flutter upgrade
+
+displayName: 'Configure flutter SDK'
 
   
 # - script: flutter pub get
