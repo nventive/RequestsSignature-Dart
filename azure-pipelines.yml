@@ -8,8 +8,10 @@ trigger:
   branches:
     include:
       - main
-  source:
-    type: pullRequest
+pr:
+  branches:
+    include:
+      - main
 
 pool:
   vmImage: ubuntu-latest
