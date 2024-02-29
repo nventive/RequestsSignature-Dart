@@ -23,6 +23,9 @@ steps:
 
 - script: git clone https://github.com/flutter/flutter.git
   displayName: ' git clone flutter SDK'
+
+- script : export PATH=`pwd`/flutter/bin:$PATH
+  displayName: export SDK path
  
 # git clone https://github.com/flutter/flutter.git
 
