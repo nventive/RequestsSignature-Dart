@@ -22,7 +22,7 @@ steps:
   displayName: Check PATH environment variable
 
 - task: Hey24sheep.flutter.flutter-install.FlutterInstall@0
-    displayName: 'Flutter Install'
+  displayName: 'Flutter Install'
 
 - script: git clone https://github.com/flutter/flutter.git
   displayName: ' git clone flutter SDK'
