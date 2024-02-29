@@ -26,6 +26,13 @@ steps:
 
 - script : export PATH=`pwd`/flutter/bin:$PATH
   displayName: export SDK path
+
+- script : flutter channel stable 
+  displayName : Get Flutter stable version
+
+- script :  flutter doctor
+  displayName : Run flutter doctor
+  
  
 # git clone https://github.com/flutter/flutter.git
 
