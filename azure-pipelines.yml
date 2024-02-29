@@ -24,14 +24,14 @@ steps:
 - task: Hey24sheep.flutter.flutter-install.FlutterInstall@0
   displayName: 'Flutter Install'
 
-- script: git clone https://github.com/flutter/flutter.git
-  displayName: ' git clone flutter SDK'
+# - script: git clone https://github.com/flutter/flutter.git
+#   displayName: ' git clone flutter SDK'
 
-- script : export PATH=`pwd`/flutter/bin:$PATH
-  displayName: export SDK path
+# - script : export PATH=`pwd`/flutter/bin:$PATH
+#   displayName: export SDK path
 
-- script : flutter channel stable 
-  displayName : Get Flutter stable version
+# - script : flutter channel stable 
+#   displayName : Get Flutter stable version
 
 - script :  flutter doctor
   displayName : Run flutter doctor
