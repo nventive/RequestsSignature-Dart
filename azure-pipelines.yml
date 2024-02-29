@@ -24,17 +24,27 @@ steps:
 - task: Hey24sheep.flutter.flutter-install.FlutterInstall@0
   displayName: 'Flutter Install'
 
-# - script: git clone https://github.com/flutter/flutter.git
-#   displayName: ' git clone flutter SDK'
-
-# - script : export PATH=`pwd`/flutter/bin:$PATH
-#   displayName: export SDK path
-
-# - script : flutter channel stable 
-#   displayName : Get Flutter stable version
-
 - script :  flutter doctor
   displayName : Run flutter doctor
+
+- script: flutter pub get
+  displayName: Install dependencies
+
+- script: flutter analyze
+  displayName: Analyze code
+
+- script: flutter test
+  displayName: Run tests
+
+- script: |
+    flutter pub publish --access-token $(PUB_DEV_TOKEN)
+  displayName: Publish to pub.dev
+  env:
+    PUB_DEV_TOKEN: $(PUB_DEV_TOKEN)  # Use the secure variable
+
+- publish: $(System.DefaultWorkingDirectory)/build/artifacts
+  displayName: Publish artifacts
+
 
  
 # git clone https://github.com/flutter/flutter.git
