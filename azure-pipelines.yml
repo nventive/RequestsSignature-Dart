@@ -20,19 +20,21 @@ steps:
 
 - script: echo $PATH
   displayName: Check PATH environment variable
-- bash:
+
+- script: git clone https://github.com/flutter/flutter.git
+  displayName: ' git clone flutter SDK'
  
-git clone https://github.com/flutter/flutter.git
+# git clone https://github.com/flutter/flutter.git
 
-export PATH=`pwd`/flutter/bin:$PATH
+# export PATH=`pwd`/flutter/bin:$PATH
 
-flutter channel stable
+# flutter channel stable
 
-flutter doctor
+# flutter doctor
 
-flutter upgrade
+# flutter upgrade
 
-displayName: 'Configure flutter SDK'
+# displayName: 'Configure flutter SDK'
 
   
 # - script: flutter pub get
