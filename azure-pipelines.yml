@@ -3,6 +3,9 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
+variables:
+  package_version: 0.0.1
+
 trigger:
   branches:
     include:
@@ -34,6 +37,14 @@ steps:
 
 - script: flutter test
   displayName: Run tests
+
+- task: qetza.replacetokens.replacetokens-task.replacetokens@5
+  displayName: 'Set version number'
+  inputs:
+    targetFiles: pubspec.yaml
+    tokenPattern: doublebraces
+    keepToken: true
+    actionOnNoFiles: warn
 
 - script: |
     flutter pub publish --access-token $(PUB_DEV_TOKEN)
