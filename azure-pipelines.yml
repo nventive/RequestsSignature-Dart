@@ -38,19 +38,25 @@ steps:
 - script: flutter test
   displayName: Run tests
 
-- task: qetza.replacetokens.replacetokens-task.replacetokens@5
-  displayName: 'Set version number'
-  inputs:
-    targetFiles: pubspec.yaml
-    tokenPattern: doublebraces
-    keepToken: true
-    actionOnNoFiles: warn
+# - task: qetza.replacetokens.replacetokens-task.replacetokens@5
+#   displayName: 'Set version number'
+#   inputs:
+#     targetFiles: pubspec.yaml
+#     tokenPattern: doublebraces
+#     keepToken: true
+#     actionOnNoFiles: warn
 
 - script: |
-    flutter pub publish --access-token $(PUB_DEV_TOKEN)
-  displayName: Publish to pub.dev
-  env:
-    PUB_DEV_TOKEN: $(PUB_DEV_TOKEN)  # Use the secure variable
+    latest_tag=$(git describe --tags $(git rev-list --tags --max-count=1))
+    echo "Latest Tag: $latest_tag"
+    flutter pub publish --access-token $(PUB_DEV_TOKEN) --package-name="$latest_tag" build/my_package.tar.gz
+  displayName: 'Publish to pub.dev'
+
+# - script: |
+#     flutter pub publish --access-token $(PUB_DEV_TOKEN)
+#   displayName: Publish to pub.dev
+#   env:
+#     PUB_DEV_TOKEN: $(PUB_DEV_TOKEN)  # Use the secure variable
 
 - publish: $(System.DefaultWorkingDirectory)/build/artifacts
   displayName: Publish artifacts
