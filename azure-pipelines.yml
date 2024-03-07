@@ -34,7 +34,7 @@ steps:
 - script: |
     latest_tag=$(git describe --tags $(git rev-list --tags --max-count=1))
     echo "Latest Tag: $latest_tag"
-  display: Setting version number 
+  displayName: Setting version number 
 
 - script :  flutter doctor
   displayName : Run flutter doctor
@@ -47,14 +47,6 @@ steps:
 
 - script: flutter test
   displayName: Run tests
-
-# - task: qetza.replacetokens.replacetokens-task.replacetokens@5
-#   displayName: 'Set version number'
-#   inputs:
-#     targetFiles: pubspec.yaml
-#     tokenPattern: doublebraces
-#     keepToken: true
-#     actionOnNoFiles: warn
 
 - script: |
     latest_tag=$(git describe --tags $(git rev-list --tags --max-count=1))
