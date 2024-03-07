@@ -27,7 +27,7 @@ steps:
   displayName: 'Flutter Install'
 
 - powershell: |
-    ((Get-Content -Path /pubspec.yaml) -replace "{{package_version}}", "$(package_version)") | Set-Content -Path /pubspec.yaml
+    ((Get-Content -Path pubspec.yaml) -replace "{{package_version}}", "$(package_version)") | Set-Content -Path pubspec.yaml
   displayName: Replace version powershell command 
 
 
