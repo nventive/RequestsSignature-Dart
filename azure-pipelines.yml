@@ -4,7 +4,7 @@
 # https://aka.ms/yaml
 
 variables:
-  package_version: 0.0.1
+  package_version: 0.0.2
 
 trigger:
   branches:
@@ -23,8 +23,17 @@ steps:
 - script: echo $PATH
   displayName: Check PATH environment variable
 
-- task: Hey24sheep.flutter.flutter-install.FlutterInstall@0
+- task: Hey24sheep.flutter.flutter-install.FlutterInstall@0  
   displayName: 'Flutter Install'
+
+- powershell: |
+    ((Get-Content -Path /pubspec.yaml) -replace "{{package_version}}", "$(package_version)") | Set-Content -Path /pubspec.yaml
+
+
+- script: |
+    latest_tag=$(git describe --tags $(git rev-list --tags --max-count=1))
+    echo "Latest Tag: $latest_tag"
+  display: Setting version number 
 
 - script :  flutter doctor
   displayName : Run flutter doctor
@@ -50,13 +59,14 @@ steps:
     latest_tag=$(git describe --tags $(git rev-list --tags --max-count=1))
     echo "Latest Tag: $latest_tag"
     flutter pub publish --dry-run
-  displayName: 'Publish to pub.dev'
+  displayName: 'Run flutter pub publish --dry-run'
+
   #  --package-name="$latest_tag" build/my_package.tar.gz
-# - script: |
-#     flutter pub publish --access-token $(PUB_DEV_TOKEN)
-#   displayName: Publish to pub.dev
-#   env:
-#     PUB_DEV_TOKEN: $(PUB_DEV_TOKEN)  # Use the secure variable
+- script: |
+    flutter pub publish --access-token $(PUB_DEV_TOKEN)
+  displayName: Publish to pub.dev
+  env:
+    PUB_DEV_TOKEN: $(PUB_DEV_TOKEN)  # Use the secure variable
 
 - publish: $(System.DefaultWorkingDirectory)/build/artifacts
   displayName: Publish artifacts
