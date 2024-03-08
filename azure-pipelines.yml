@@ -26,17 +26,27 @@ steps:
 - task: Hey24sheep.flutter.flutter-install.FlutterInstall@0  
   displayName: 'Flutter Install'
 
-- task: gitversion/setup@0
-  inputs:
-    versionSpec: '5.10.1'
-  displayName: 'Install GitVersion'
-
+steps:
 - task: gitversion/execute@0
+  inputs:
+    useConfigFile: false
   displayName: 'Calculate version'
 
 - script: |
-    echo "The calculated version is $(GitVersion.Output)"
+    echo "The calculated version is $(GitVersion.Output.Version)"
   displayName: 'Display Calculated Version'
+
+# - task: gitversion/setup@0
+#   inputs:
+#     versionSpec: '5.10.1'
+#   displayName: 'Install GitVersion'
+
+# - task: gitversion/execute@0
+#   displayName: 'Calculate version'
+
+# - script: |
+#     echo "The calculated version is $(GitVersion.Output)"
+#   displayName: 'Display Calculated Version'
 
 - powershell: |
     ((Get-Content -Path pubspec.yaml) -replace "{{package_version}}", "$(package_version)") | Set-Content -Path pubspec.yaml
