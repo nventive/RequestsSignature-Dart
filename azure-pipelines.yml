@@ -36,12 +36,29 @@ steps:
   displayName: 'Install GitVersion'
 
 - script: |
-    dotnet gitversion /output buildserver /showvariable GitVersion.MajorMinorPatch
+    dotnet gitversion /output json > version.json
   displayName: 'Calculate version'
 
 - script: |
-    echo "The calculated version is $(GitVersion.MajorMinorPatch)"
-  displayName: 'Display Calculated Version'
+    cat version.json
+  displayName: 'Display Calculated Version'  
+
+# - task: UseDotNet@2
+#   displayName: 'Install .NET Core SDK'
+#   inputs:
+#     packageType: sdk
+#     version: '3.x'
+
+# - script: dotnet tool install --global GitVersion.Tool
+#   displayName: 'Install GitVersion'
+
+# - script: |
+#     dotnet gitversion /output buildserver /showvariable GitVersion.MajorMinorPatch
+#   displayName: 'Calculate version'
+
+# - script: |
+#     echo "The calculated version is $(GitVersion.MajorMinorPatch)"
+#   displayName: 'Display Calculated Version'
 
 
 # - task: gitversion/execute@0
