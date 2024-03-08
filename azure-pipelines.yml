@@ -26,15 +26,23 @@ steps:
 - task: Hey24sheep.flutter.flutter-install.FlutterInstall@0  
   displayName: 'Flutter Install'
 
+- task: gitversion/setup@0
+  inputs:
+    versionSpec: '5.10.1'
+  displayName: 'Install GitVersion' 
+
+- script: echo $(GitVersion.SemVer) 
+  displayName: 'Display GitVersion'
+
 - powershell: |
     ((Get-Content -Path pubspec.yaml) -replace "{{package_version}}", "$(package_version)") | Set-Content -Path pubspec.yaml
   displayName: Replace version powershell command 
 
 
-- script: |
-    latest_tag=$(git describe --tags $(git rev-list --tags --max-count=1))
-    echo "Latest Tag: $latest_tag"
-  displayName: Setting version number 
+# - script: |
+#     latest_tag=$(git describe --tags $(git rev-list --tags --max-count=1))
+#     echo "Latest Tag: $latest_tag"
+#   displayName: Setting version number 
 
 - script :  flutter doctor
   displayName : Run flutter doctor
@@ -48,13 +56,9 @@ steps:
 - script: flutter test
   displayName: Run tests
 
-- script: |
-    latest_tag=$(git describe --tags $(git rev-list --tags --max-count=1))
-    echo "Latest Tag: $latest_tag"
-    flutter pub publish --dry-run
+- script: flutter pub publish --dry-run
   displayName: 'Run flutter pub publish --dry-run'
 
-  #  --package-name="$latest_tag" build/my_package.tar.gz
 - script: |
     flutter pub publish --access-token $(PUB_DEV_TOKEN)
   displayName: Publish to pub.dev
@@ -65,18 +69,6 @@ steps:
   displayName: Publish artifacts
 
 
- 
-# git clone https://github.com/flutter/flutter.git
-
-# export PATH=`pwd`/flutter/bin:$PATH
-
-# flutter channel stable
-
-# flutter doctor
-
-# flutter upgrade
-
-# displayName: 'Configure flutter SDK'
 
   
 
