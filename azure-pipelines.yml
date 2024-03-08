@@ -36,12 +36,16 @@ steps:
   displayName: 'Install GitVersion'
 
 - script: |
-    dotnet gitversion /output json > version.json
+    dotnet gitversion
   displayName: 'Calculate version'
 
-- script: |
-    cat version.json
-  displayName: 'Display Calculated Version'  
+# - script: |
+#     dotnet gitversion /output json > version.json
+#   displayName: 'Calculate version'
+
+# - script: |
+#     cat version.json
+#   displayName: 'Display Calculated Version'  
 
 # - task: UseDotNet@2
 #   displayName: 'Install .NET Core SDK'
