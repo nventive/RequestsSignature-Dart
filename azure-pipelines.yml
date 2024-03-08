@@ -32,11 +32,14 @@ steps:
   displayName: 'Install GitVersion'
 
 - task: gitversion/execute@0
-  enabled: true
-  displayName: 'Establish Version'
+  inputs:
+    useConfigFile: true
+    configFilePath: $(Build.SourcesDirectory)/build/gitversion.yml
+  displayName: 'Calculate version'
 
-- script: echo $(FullSemVer) 
-  displayName: 'Display GitVersion'
+- script: |
+    echo "The calculated version is $(GitVersion.Output)"
+  displayName: 'Display Calculated Version'
 
 - powershell: |
     ((Get-Content -Path pubspec.yaml) -replace "{{package_version}}", "$(package_version)") | Set-Content -Path pubspec.yaml
