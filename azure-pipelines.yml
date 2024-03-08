@@ -32,9 +32,6 @@ steps:
   displayName: 'Install GitVersion'
 
 - task: gitversion/execute@0
-  inputs:
-    useConfigFile: true
-    configFilePath: $(Build.SourcesDirectory)/build/gitversion.yml
   displayName: 'Calculate version'
 
 - script: |
