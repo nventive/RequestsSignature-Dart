@@ -26,10 +26,12 @@ steps:
 - task: Hey24sheep.flutter.flutter-install.FlutterInstall@0  
   displayName: 'Flutter Install'
 
-- task: gitversion/setup@0
-  inputs:
-    versionSpec: '5.10.1'
-  displayName: 'Install GitVersion' 
+# - task: gitversion/setup@0
+#   inputs:
+#     versionSpec: '5.10.1'
+#   displayName: 'Install GitVersion'
+
+- task: GitVersion@5 inputs: runtime: 'core' configFilePath: 'GitVersion.yml' # Optional: Path to GitVersion configuration file updateAssemblyInfo: true # Optional: Automatically update the AssemblyInfo files with version information
 
 - script: echo $(GitVersion.SemVer) 
   displayName: 'Display GitVersion'
