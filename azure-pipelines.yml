@@ -35,14 +35,23 @@ steps:
 - script: dotnet tool install --global GitVersion.Tool
   displayName: 'Install GitVersion'
 
-- task: gitversion/execute@0
-  inputs:
-    useConfigFile: false
+- script: |
+    dotnet gitversion /output buildserver /showvariable GitVersion.MajorMinorPatch
   displayName: 'Calculate version'
 
 - script: |
-    echo "The calculated version is $(GitVersion.Output.Version)"
+    echo "The calculated version is $(GitVersion.MajorMinorPatch)"
   displayName: 'Display Calculated Version'
+
+
+# - task: gitversion/execute@0
+#   inputs:
+#     useConfigFile: false
+#   displayName: 'Calculate version'
+
+# - script: |
+#     echo "The calculated version is $(GitVersion.Output.Version)"
+#   displayName: 'Display Calculated Version'
 
 # - task: gitversion/setup@0
 #   inputs:
