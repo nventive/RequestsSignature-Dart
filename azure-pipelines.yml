@@ -26,6 +26,15 @@ steps:
 - task: Hey24sheep.flutter.flutter-install.FlutterInstall@0  
   displayName: 'Flutter Install'
 
+- task: UseDotNet@2
+  displayName: 'Install .NET Core SDK'
+  inputs:
+    packageType: sdk
+    version: '3.x'
+
+- script: dotnet tool install --global GitVersion.Tool
+  displayName: 'Install GitVersion'
+
 - task: gitversion/execute@0
   inputs:
     useConfigFile: false
