@@ -26,7 +26,6 @@ steps:
 - task: Hey24sheep.flutter.flutter-install.FlutterInstall@0  
   displayName: 'Flutter Install'
 
-steps:
 - task: gitversion/execute@0
   inputs:
     useConfigFile: false
