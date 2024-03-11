@@ -1,4 +1,4 @@
-﻿# The version is driven by conventional commits via xxx-version-bump-message.
+# The version is driven by conventional commits via xxx-version-bump-message.
 # Anything merged to main creates a new stable version.
 # Only builds from main and feature/* are pushed to nuget.org.
 
