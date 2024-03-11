@@ -37,6 +37,10 @@ steps:
     configFilePath: $(Build.SourcesDirectory)/build/gitversion.yml
   displayName: 'Calculate version'
 
+- script: |
+    echo "The calculated version is $(GitVersion.SemVer)"
+  displayName: 'Display Calculated Version'  
+
 # - task: UseDotNet@2
 #   displayName: 'Install .NET Core SDK'
 #   inputs:
@@ -81,9 +85,7 @@ steps:
 #     useConfigFile: false
 #   displayName: 'Calculate version'
 
-# - script: |
-#     echo "The calculated version is $(GitVersion.Output.Version)"
-#   displayName: 'Display Calculated Version'
+
 
 # - task: gitversion/setup@0
 #   inputs:
@@ -98,7 +100,7 @@ steps:
 #   displayName: 'Display Calculated Version'
 
 - powershell: |
-    ((Get-Content -Path pubspec.yaml) -replace "{{package_version}}", "$(package_version)") | Set-Content -Path pubspec.yaml
+    ((Get-Content -Path pubspec.yaml) -replace "{{package_version}}", "$(GitVersion.SemVer)") | Set-Content -Path pubspec.yaml
   displayName: Replace version powershell command 
 
 
