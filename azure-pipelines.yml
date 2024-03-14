@@ -1,0 +1,62 @@
+trigger:
+  branches:
+    include:
+      - main
+pr:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: ubuntu-20.04
+
+steps:
+
+- task: Hey24sheep.flutter.flutter-install.FlutterInstall@0  
+  displayName: 'Flutter Install'
+
+- task: gitversion/setup@0
+  inputs:
+    versionSpec: '5.10.1'
+  displayName: 'Install GitVersion'
+
+- task: gitversion/execute@0
+  inputs:
+    useConfigFile: true
+    configFilePath: $(Build.SourcesDirectory)/build/gitversion.yml
+  displayName: 'Calculate version'
+
+- script: |
+    echo "The calculated version is $(GitVersion.MajorMinorPatch)"
+  displayName: 'Display Calculated Version'  
+
+- powershell: |
+    ((Get-Content -Path pubspec.yaml) -replace "{{package_version}}", "$(GitVersion.MajorMinorPatch)") | Set-Content -Path pubspec.yaml
+  displayName: Replace version powershell command 
+
+- powershell: |
+    ((Get-Content -Path CHANGELOG.md) -replace "{{package_version}}", "$(GitVersion.MajorMinorPatch)") | Set-Content -Path CHANGELOG.md
+  displayName: change version in CHANGELOG.md file
+
+- script :  flutter doctor
+  displayName : Run flutter doctor
+
+- script: flutter pub get
+  displayName: Install dependencies
+
+- script: flutter analyze
+  displayName: Analyze code
+
+- script: flutter test
+  displayName: Run tests
+
+- script: flutter pub publish --dry-run
+  displayName: 'Run flutter pub publish --dry-run'
+
+
+
+
+
+  
+
+
