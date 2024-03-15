@@ -16,3 +16,7 @@ export 'src/core/interface/signature_body_source_builder.dart';
 
 // Export default constants
 export 'src/core/default_constants.dart';
+
+// Export client implementation
+///Client: Dio
+export 'src/client/dio_interceptor.dart';
