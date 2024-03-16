@@ -38,19 +38,16 @@ steps:
     ((Get-Content -Path CHANGELOG.md) -replace "{{package_version}}", "$(GitVersion.MajorMinorPatch)") | Set-Content -Path CHANGELOG.md
   displayName: change version in CHANGELOG.md file
 
-- script :  flutter doctor
-  displayName : Run flutter doctor
-
-- script: flutter pub get
+- script: dart pub get
   displayName: Install dependencies
 
-- script: flutter analyze
+- script: dart analyze
   displayName: Analyze code
 
-- script: flutter test
+- script: dart test
   displayName: Run tests
 
-- script: flutter pub publish --dry-run
+- script: dart pub publish --dry-run
   displayName: 'Run flutter pub publish --dry-run'
 
 
