@@ -1,89 +1,107 @@
-import 'dart:math';
-
-import 'package:cryptography/dart.dart';
 import 'package:dio/dio.dart';
 import 'package:requests_signature_dart/requests_signature_dart.dart';
 
-/// Interceptor for signing HTTP requests with HMAC authentication.
+import 'dart:convert';
+import 'package:requests_signature_dart/src/client/requests_signature_options.dart';
+
+import 'dart:typed_data';
+
+/// Interceptor for signing outgoing requests with request signature.
 ///
-/// This interceptor adds HMAC authentication headers to outgoing HTTP requests
-/// based on the provided client ID and client secret. It calculates the signature
-/// using the specified hash algorithm.
-class HMACDioInterceptor extends Interceptor {
-  /// The client ID used for HMAC authentication.
-  final String clientId;
+/// This interceptor signs the outgoing requests with a request signature
+/// before forwarding them to the inner Dio client for processing.
+class RequestsSignatureInterceptor extends Interceptor {
+  final RequestsSignatureOptions _options;
+  final ISignatureBodySourceBuilder _signatureBodySourceBuilder;
+  final ISignatureBodySigner _signatureBodySigner;
 
-  /// The client secret used for HMAC authentication.
-  final String clientSecret;
-
-  /// The signer used to calculate the HMAC signature.
-  final HashAlgorithmSignatureBodySigner signer;
-
-  /// Creates a new [HMACInterceptor] instance.
+  /// Constructs a new [RequestsSignatureInterceptor].
   ///
-  /// [clientId] is the client ID used for HMAC authentication.
+  /// The [options] parameter specifies the signature options.
   ///
-  /// [clientSecret] is the client secret used for HMAC authentication.
-  HMACDioInterceptor(this.clientId, this.clientSecret)
-      : signer =
-            HashAlgorithmSignatureBodySigner(hmacAlgorithm: DartHmac.sha256());
+  /// Optionally, you can provide custom implementations for
+  /// [signatureBodySourceBuilder] and [signatureBodySigner].
+  RequestsSignatureInterceptor(
+    this._options, {
+    ISignatureBodySourceBuilder? signatureBodySourceBuilder,
+    ISignatureBodySigner? signatureBodySigner,
+  })  : _signatureBodySourceBuilder =
+            signatureBodySourceBuilder ?? SignatureBodySourceBuilder(),
+        _signatureBodySigner = signatureBodySigner!;
 
   @override
   Future onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
-    // Generate timestamp and nonce
-    final timestamp = _epochTime();
-    final nonce = _genGuid();
-
-    // Extract request details
-    final uri = options.uri;
-    final method = options.method;
-    final headers = options.headers;
-
-    // Prepare parameters for signature calculation
-    final signatureBodySourceParameters = SignatureBodySourceParameters(
-      method,
-      uri,
-      headers.map((key, value) => MapEntry(key.toString(), value.toString())),
-      nonce,
-      timestamp,
-      clientId,
-      DefaultConstants.signatureBodySourceComponents,
-    );
-
-    // Build the signature body source
-    final bodySourceBuilder = SignatureBodySourceBuilder();
-    final signatureBodySource =
-        await bodySourceBuilder.build(signatureBodySourceParameters);
-    final signatureBodyParameters =
-        SignatureBodyParameters(signatureBodySource, clientSecret);
-
-    // Calculate HMAC signature
-    final signature = await signer.sign(signatureBodyParameters);
-
-    // Add authentication headers to the request
-    options.headers['X-RequestSignature-ClientId'] = clientId;
-    options.headers['X-RequestSignature-Nonce'] = nonce;
-    options.headers['X-RequestSignature-Timestamp'] = timestamp.toString();
-    options.headers['X-RequestSignature-Signature'] = signature;
-
-    return super.onRequest(options, handler);
+    // Sign the request before it is sent
+    await _signRequest(options);
+    return handler.next(options); // Proceed with the request
   }
 
-  /// Generates a random nonce.
-  ///
-  /// The nonce is a unique string used for each request to prevent replay attacks.
+  /// Signs the outgoing request with a request signature.
+  Future<void> _signRequest(RequestOptions options) async {
+    options.headers
+        .remove(_options.headerName); // Remove existing signature header
+
+    final signatureBodySourceComponents =
+        _options.signatureBodySourceComponents.isNotEmpty
+            ? _options.signatureBodySourceComponents
+            : DefaultConstants.signatureBodySourceComponents;
+
+    Uint8List? body;
+    // Encode request body if required by signature components
+    if (options.data != null &&
+        signatureBodySourceComponents
+            .contains(SignatureBodySourceComponents.body)) {
+      body = utf8.encode(options.data.toString());
+    }
+
+    // Build parameters for constructing the signature body
+    final signatureBodySourceParameters = SignatureBodySourceParameters(
+        options.method,
+        options.uri,
+        options.headers
+            .map((key, value) => MapEntry(key.toString(), value.toString())),
+        _genGuid(),
+        _epochTime(),
+        _options.clientId!,
+        signatureBodySourceComponents,
+        body: body);
+
+    // Build the signature body source based on parameters
+    final signatureBodySource =
+        await _signatureBodySourceBuilder.build(signatureBodySourceParameters);
+
+    // Construct parameters for creating the signature
+    final signatureBodyParameters =
+        SignatureBodyParameters(signatureBodySource, _options.clientSecret!);
+
+    // Generate the signature using the signer
+    final signature = await _signatureBodySigner.sign(signatureBodyParameters);
+
+    // Format the signature header based on the specified pattern
+    final signatureHeader = _options.signaturePattern
+        .replaceAll("{ClientId}", _options.clientId!)
+        .replaceAll("{Nonce}", signatureBodySourceParameters.nonce)
+        .replaceAll(
+            "{Timestamp}", signatureBodySourceParameters.timestamp.toString())
+        .replaceAll("{SignatureBody}", signature);
+
+    // Add the signature header to the request headers
+    options.headers[_options.headerName] = signatureHeader;
+  }
+
+  // Generate a unique nonce
   String _genGuid() {
-    const String uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx';
+    final uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx';
     return uuid.replaceAllMapped(RegExp('[xy]'), (match) {
-      final int rand = Random().nextInt(16);
-      final int index = match.group(0) == 'x' ? rand : (rand & 0x3 | 0x8);
+      final rand = DateTime.now().millisecond;
+      final index = match.group(0) == 'x' ? rand : (rand & 0x3 | 0x8);
       return index.toRadixString(16);
     });
   }
 
-  /// Returns the current epoch time in milliseconds.
+  // Get the current timestamp in seconds since epoch
   int _epochTime() {
-    return DateTime.now().millisecondsSinceEpoch;
+    return DateTime.now().millisecondsSinceEpoch ~/ 1000;
   }
 }
