@@ -39,9 +39,14 @@ class RequestsSignatureInterceptor extends Interceptor {
   @override
   Future onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
-    // Sign the request before it is sent
-    await _signRequest(options);
-    return handler.next(options); // Proceed with the request
+    try {
+      // Sign the request before it is sent
+      await _signRequest(options);
+      // Proceed with the request
+      return handler.next(options);
+    } catch (e) {
+      throw RequestsSignatureException(e.toString());
+    }
   }
 
   /// Signs the outgoing request with a request signature.
