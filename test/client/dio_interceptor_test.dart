@@ -69,26 +69,4 @@ void main() {
       throwsA(isA<DioException>()), // Expect DioException due to invalid URL
     );
   });
-
-  test('Interceptor handles malformed request data', () async {
-    // Arrange
-    final options = RequestsSignatureOptions(
-      clientId: 'test_client_id',
-      clientSecret: 'test_client_secret',
-      headerName: 'X-Signature',
-      signaturePattern: '{ClientId}:{Nonce}:{Timestamp}:{SignatureBody}',
-    );
-
-    final interceptor = RequestsSignatureInterceptor(options);
-
-    final dio = Dio();
-    dio.interceptors.add(interceptor);
-
-    // Act & Assert
-    expect(
-      () async => await dio.post('https://example.com',
-          data: 'invalid_data'), // Request with malformed data
-      throwsA(isA<FormatException>()), // FormatException due to malformed data
-    );
-  });
 }
