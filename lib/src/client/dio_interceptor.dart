@@ -17,7 +17,7 @@ class RequestsSignatureInterceptor extends Interceptor {
   final RequestsSignatureOptions _options;
   final ISignatureBodySourceBuilder _signatureBodySourceBuilder;
   final ISignatureBodySigner _signatureBodySigner;
-  late int _clockSkew;
+  int _clockSkew = 0;
 
   /// Constructs a new [RequestsSignatureInterceptor].
   ///
@@ -32,9 +32,7 @@ class RequestsSignatureInterceptor extends Interceptor {
   })  : _signatureBodySourceBuilder =
             signatureBodySourceBuilder ?? SignatureBodySourceBuilder(),
         _signatureBodySigner =
-            signatureBodySigner ?? HashAlgorithmSignatureBodySigner() {
-    _clockSkew = 0;
-  }
+            signatureBodySigner ?? HashAlgorithmSignatureBodySigner();
 
   @override
   Future onRequest(
