@@ -6,14 +6,18 @@ import 'package:requests_signature_dart/src/client/requests_signature_options.da
 
 import 'dart:typed_data';
 
+import 'package:uuid/uuid.dart';
+
 /// Interceptor for signing outgoing requests with request signature.
 ///
 /// This interceptor signs the outgoing requests with a request signature
 /// before forwarding them to the inner Dio client for processing.
 class RequestsSignatureInterceptor extends Interceptor {
+  Uuid _uuid = const Uuid();
   final RequestsSignatureOptions _options;
   final ISignatureBodySourceBuilder _signatureBodySourceBuilder;
   final ISignatureBodySigner _signatureBodySigner;
+  late int _clockSkew;
 
   /// Constructs a new [RequestsSignatureInterceptor].
   ///
@@ -27,7 +31,10 @@ class RequestsSignatureInterceptor extends Interceptor {
     ISignatureBodySigner? signatureBodySigner,
   })  : _signatureBodySourceBuilder =
             signatureBodySourceBuilder ?? SignatureBodySourceBuilder(),
-        _signatureBodySigner = signatureBodySigner!;
+        _signatureBodySigner =
+            signatureBodySigner ?? HashAlgorithmSignatureBodySigner() {
+    _clockSkew = 0;
+  }
 
   @override
   Future onRequest(
@@ -61,8 +68,8 @@ class RequestsSignatureInterceptor extends Interceptor {
         options.uri,
         options.headers
             .map((key, value) => MapEntry(key.toString(), value.toString())),
-        _genGuid(),
-        _epochTime(),
+        _uuid.v4(), // Generate a nonce
+        _getTimestamp(),
         _options.clientId!,
         signatureBodySourceComponents,
         body: body);
@@ -76,7 +83,8 @@ class RequestsSignatureInterceptor extends Interceptor {
         SignatureBodyParameters(signatureBodySource, _options.clientSecret!);
 
     // Generate the signature using the signer
-    final signature = await _signatureBodySigner.sign(signatureBodyParameters);
+    final signatureBody =
+        await _signatureBodySigner.sign(signatureBodyParameters);
 
     // Format the signature header based on the specified pattern
     final signatureHeader = _options.signaturePattern
@@ -84,24 +92,16 @@ class RequestsSignatureInterceptor extends Interceptor {
         .replaceAll("{Nonce}", signatureBodySourceParameters.nonce)
         .replaceAll(
             "{Timestamp}", signatureBodySourceParameters.timestamp.toString())
-        .replaceAll("{SignatureBody}", signature);
+        .replaceAll("{SignatureBody}", signatureBody);
 
     // Add the signature header to the request headers
     options.headers[_options.headerName] = signatureHeader;
   }
 
-  // Generate a unique nonce
-  String _genGuid() {
-    final uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx';
-    return uuid.replaceAllMapped(RegExp('[xy]'), (match) {
-      final rand = DateTime.now().millisecond;
-      final index = match.group(0) == 'x' ? rand : (rand & 0x3 | 0x8);
-      return index.toRadixString(16);
-    });
+  // Get the current timestamp in seconds since epoch
+  int _getTime() {
+    return DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
   }
 
-  // Get the current timestamp in seconds since epoch
-  int _epochTime() {
-    return DateTime.now().millisecondsSinceEpoch ~/ 1000;
-  }
+  int _getTimestamp() => _getTime() + _clockSkew;
 }

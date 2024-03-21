@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:cryptography/dart.dart';
 import 'package:requests_signature_dart/src/core/implementation/signature_body_parameters.dart';
+import 'package:requests_signature_dart/src/core/interface/signature_body_signer.dart';
 
 /// A class for signing message bodies using a hash algorithm.
 ///
@@ -19,7 +20,7 @@ import 'package:requests_signature_dart/src/core/implementation/signature_body_p
 /// final signature = await signer.sign(parameters);
 /// print(signature);
 /// ```
-class HashAlgorithmSignatureBodySigner {
+class HashAlgorithmSignatureBodySigner implements ISignatureBodySigner {
   /// Function that builds the hash algorithm using provided [SignatureBodyParameters].
   late DartHmac _hashAlgorithm;
 

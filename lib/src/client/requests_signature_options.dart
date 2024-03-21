@@ -31,22 +31,20 @@ class RequestsSignatureOptions {
 
   /// Constructor for RequestsSignatureOptions.
   RequestsSignatureOptions({
-    this.clientId,
-    this.clientSecret,
+    required this.clientId,
+    required this.clientSecret,
     String? headerName,
     String? signaturePattern,
     Duration? clockSkew,
     bool? disableAutoRetryOnClockSkew,
     List<String>? signatureBodySourceComponents,
   }) {
-    if (headerName != null) this.headerName = headerName;
-    if (signaturePattern != null) this.signaturePattern = signaturePattern;
-    if (clockSkew != null) this.clockSkew = clockSkew;
-    if (disableAutoRetryOnClockSkew != null) {
-      this.disableAutoRetryOnClockSkew = disableAutoRetryOnClockSkew;
-    }
-    if (signatureBodySourceComponents != null) {
-      this.signatureBodySourceComponents = signatureBodySourceComponents;
-    }
+    this.headerName = headerName ?? this.headerName;
+    this.signaturePattern = signaturePattern ?? this.signaturePattern;
+    this.clockSkew = clockSkew ?? this.clockSkew;
+    this.disableAutoRetryOnClockSkew =
+        disableAutoRetryOnClockSkew ?? this.disableAutoRetryOnClockSkew;
+    this.signatureBodySourceComponents =
+        signatureBodySourceComponents ?? this.signatureBodySourceComponents;
   }
 }
