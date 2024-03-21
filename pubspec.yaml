@@ -11,6 +11,7 @@ dependencies:
   cryptography: ^2.7.0
   dio: ^5.4.1
   http: ^1.2.0
+  http_mock_adapter: ^0.6.1
   mockito: ^5.4.4
   uuid: ^4.3.3
 
