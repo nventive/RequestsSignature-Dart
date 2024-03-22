@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:requests_signature_dart/requests_signature_dart.dart';
 
@@ -38,12 +41,54 @@ class RequestsSignatureInterceptor extends Interceptor {
   Future onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
     try {
+      Dio dio = Dio();
+      _validateOptions();
+
       // Sign the request before it is sent
       await _signRequest(options);
+
       // Proceed with the request
-      return handler.next(options);
-    } catch (e) {
-      throw RequestsSignatureException(e.toString());
+      Response<dynamic> response = await dio.request(
+        options.path,
+        data: options.data,
+        options: Options(
+          method: options.method,
+          headers: options.headers,
+        ),
+      );
+
+      // Check for clock skew only if auto-retry is enabled
+      if (!_options.disableAutoRetryOnClockSkew &&
+          (response.statusCode == HttpStatus.unauthorized ||
+              response.statusCode == HttpStatus.forbidden) &&
+          response.headers.value(HttpHeaders.dateHeader) != null) {
+        print("HttpHeaders.dateHeader ${HttpHeaders.dateHeader}");
+        // Parse the server's timestamp from the response headers
+        final serverTimestamp =
+            DateTime.parse(response.headers.value(HttpHeaders.dateHeader)!);
+        final now = DateTime.now();
+        final diff = (now.difference(serverTimestamp).inSeconds);
+        if (diff > _options.clockSkew.inSeconds) {
+          _clockSkew = serverTimestamp.difference(now).inSeconds;
+
+          // Re-sign the request with the updated clockskew
+          await _signRequest(options);
+
+          response = await dio.request(
+            options.path,
+            data: options.data,
+            options: Options(
+              method: options.method,
+              headers: options.headers,
+            ),
+          );
+        }
+      }
+
+      // Return the response
+      return response;
+    } catch (err, stackTrace) {
+      throw RequestsSignatureException('$err\n$stackTrace');
     }
   }
 
@@ -107,4 +152,26 @@ class RequestsSignatureInterceptor extends Interceptor {
   }
 
   int _getTimestamp() => _getTime() + _clockSkew;
+
+  void _validateOptions() {
+    if (_options.clientId == null || _options.clientId!.isEmpty) {
+      throw RequestsSignatureException(
+          'Missing ClientId in RequestsSignatureInterceptor options.');
+    }
+
+    if (_options.clientSecret == null || _options.clientSecret!.isEmpty) {
+      throw RequestsSignatureException(
+          'Missing ClientSecret in RequestsSignatureInterceptor options.');
+    }
+
+    if (_options.headerName.isEmpty) {
+      throw RequestsSignatureException(
+          'Missing HeaderName in RequestsSignatureInterceptor options.');
+    }
+
+    if (_options.signaturePattern.isEmpty) {
+      throw RequestsSignatureException(
+          'Missing SignaturePattern in RequestsSignatureInterceptor options.');
+    }
+  }
 }
