@@ -15,10 +15,12 @@ extension DioExtension on Dio {
   /// [signatureBodySigner] - The [ISignatureBodySigner]. If not provided, will try to retrieve from the container.
   void addRequestsSignatureInterceptor(
       {RequestsSignatureOptions? options,
+      required Dio dio,
       ISignatureBodySourceBuilder? signatureBodySourceBuilder,
       ISignatureBodySigner? signatureBodySigner}) {
     interceptors.add(RequestsSignatureInterceptor(
       options!,
+      dio,
       signatureBodySourceBuilder: signatureBodySourceBuilder!,
       signatureBodySigner: signatureBodySigner!,
     ));

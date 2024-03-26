@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -18,6 +19,7 @@ import 'package:uuid/uuid.dart';
 class RequestsSignatureInterceptor extends Interceptor {
   Uuid _uuid = const Uuid();
   final RequestsSignatureOptions _options;
+  final Dio _dioInstance;
   final ISignatureBodySourceBuilder _signatureBodySourceBuilder;
   final ISignatureBodySigner _signatureBodySigner;
   int _clockSkew = 0;
@@ -29,7 +31,8 @@ class RequestsSignatureInterceptor extends Interceptor {
   /// Optionally, you can provide custom implementations for
   /// [signatureBodySourceBuilder] and [signatureBodySigner].
   RequestsSignatureInterceptor(
-    this._options, {
+    this._options,
+    this._dioInstance, {
     ISignatureBodySourceBuilder? signatureBodySourceBuilder,
     ISignatureBodySigner? signatureBodySigner,
   })  : _signatureBodySourceBuilder =
@@ -41,54 +44,61 @@ class RequestsSignatureInterceptor extends Interceptor {
   Future onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
     try {
-      Dio dio = Dio();
-      _validateOptions();
-
-      // Sign the request before it is sent
+      log('[✓] onRequest triggered');
       await _signRequest(options);
 
-      // Proceed with the request
-      Response<dynamic> response = await dio.request(
-        options.path,
-        data: options.data,
-        options: Options(
-          method: options.method,
-          headers: options.headers,
-        ),
-      );
+      return handler.next(options);
+    } catch (err, stackTrace) {
+      log('[x] onrequest error');
+      throw RequestsSignatureException('$err\n$stackTrace');
+    }
+  }
 
-      // Check for clock skew only if auto-retry is enabled
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    _validateOptions();
+
+    try {
+      log('[✓] Initial response status code : ${response.statusCode} OK');
+
       if (!_options.disableAutoRetryOnClockSkew &&
-          (response.statusCode == HttpStatus.unauthorized ||
-              response.statusCode == HttpStatus.forbidden) &&
+          ((response.statusCode == HttpStatus.unauthorized) ||
+              (response.statusCode == HttpStatus.forbidden)) &&
           response.headers.value(HttpHeaders.dateHeader) != null) {
-        print("HttpHeaders.dateHeader ${HttpHeaders.dateHeader}");
-        // Parse the server's timestamp from the response headers
-        final serverTimestamp =
-            DateTime.parse(response.headers.value(HttpHeaders.dateHeader)!);
-        final now = DateTime.now();
-        final diff = (now.difference(serverTimestamp).inSeconds);
-        if (diff > _options.clockSkew.inSeconds) {
-          _clockSkew = serverTimestamp.difference(now).inSeconds;
+        log(response.headers.value(HttpHeaders.dateHeader.toString()) == null
+            ? '[!] HttpHeaders.dateHeader NULL'
+            : '[✓] HttpHeaders.dateHeader NOT NULL');
+        final serverDate =
+            int.tryParse(response.headers.value(HttpHeaders.dateHeader)!);
+        final now = _getTime(
+            DateTime.tryParse(response.headers.value(HttpHeaders.dateHeader)!));
 
+        if (((serverDate! - now).abs()) > _options.clockSkew.inSeconds) {
+          log('[✓] onResponse triggered [IF_BLOCK]');
+          _clockSkew = serverDate - now;
           // Re-sign the request with the updated clockskew
-          await _signRequest(options);
+          _signRequest(response.requestOptions);
+          // Resend the request
+          _resendRequest(response.requestOptions, handler);
 
-          response = await dio.request(
-            options.path,
-            data: options.data,
-            options: Options(
-              method: options.method,
-              headers: options.headers,
-            ),
-          );
+          return handler.next(response);
         }
       }
-
-      // Return the response
-      return response;
     } catch (err, stackTrace) {
+      log('[x] onResponse error');
       throw RequestsSignatureException('$err\n$stackTrace');
+    }
+  }
+
+  Future<void> _resendRequest(
+      RequestOptions options, ResponseInterceptorHandler handler) async {
+    try {
+      log('[✓] resendRequest triggered in try..catch block');
+      final response = await _dioInstance.fetch(options);
+      return handler.next(response);
+    } catch (error, stackTrace) {
+      log('[x] resendRequest error');
+      throw RequestsSignatureException('ResendERR\n$error\n$stackTrace');
     }
   }
 
@@ -117,7 +127,9 @@ class RequestsSignatureInterceptor extends Interceptor {
         options.headers
             .map((key, value) => MapEntry(key.toString(), value.toString())),
         _uuid.v4(), // Generate a nonce
-        _getTimestamp(),
+        _getTimestamp(options.headers.values.contains(HttpHeaders.dateHeader)
+            ? options.headers[HttpHeaders.dateHeader]
+            : null),
         _options.clientId!,
         signatureBodySourceComponents,
         body: body);
@@ -146,12 +158,21 @@ class RequestsSignatureInterceptor extends Interceptor {
     options.headers[_options.headerName] = signatureHeader;
   }
 
-  // Get the current timestamp in seconds since epoch
-  int _getTime() {
-    return DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
+  // Returns what the client thinks is the current time.
+  int _getTime(DateTime? timestamp) {
+    if (timestamp != null) {
+      final parsedTimestamp = timestamp.millisecondsSinceEpoch ~/ 1000;
+      return int.tryParse(parsedTimestamp.toString()) ??
+          DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    } else {
+      return DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
+    }
   }
 
-  int _getTimestamp() => _getTime() + _clockSkew;
+  // Returns the timestamp, accounting for the perceived clock skew.
+  int _getTimestamp(DateTime? timestamp) {
+    return _getTime(timestamp) + _clockSkew;
+  }
 
   void _validateOptions() {
     if (_options.clientId == null || _options.clientId!.isEmpty) {
