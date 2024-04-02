@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:developer';
+
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -24,6 +24,7 @@ class RequestsSignatureInterceptor extends Interceptor {
   final ISignatureBodySourceBuilder _signatureBodySourceBuilder;
   final ISignatureBodySigner _signatureBodySigner;
   int _clockSkew = 0;
+  final int Function(RequestOptions request)? _getTime;
 
   /// Constructs a new [RequestsSignatureInterceptor].
   ///
@@ -36,170 +37,141 @@ class RequestsSignatureInterceptor extends Interceptor {
     this._dioInstance, {
     ISignatureBodySourceBuilder? signatureBodySourceBuilder,
     ISignatureBodySigner? signatureBodySigner,
+    int Function(RequestOptions request)? getTime,
   })  : _signatureBodySourceBuilder =
             signatureBodySourceBuilder ?? SignatureBodySourceBuilder(),
         _signatureBodySigner =
-            signatureBodySigner ?? HashAlgorithmSignatureBodySigner();
+            signatureBodySigner ?? HashAlgorithmSignatureBodySigner(),
+        _getTime = getTime;
 
   @override
   Future onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
-    try {
-      print('[✓] onRequest triggered');
-      await _signRequest(options);
-      return handler.next(options);
-    } catch (err, stackTrace) {
-      log('[x] onrequest error');
-      throw RequestsSignatureException('$err\n$stackTrace');
-    }
+    print('[✓] onRequest triggered');
+    await _signRequest(options);
+    return handler.next(options);
   }
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
+    DateFormat format = DateFormat();
     _validateOptions();
 
-    try {
-      print('[✓] Initial response status code : ${response.statusCode} OK');
-      print('[!] ClockSkew ${_options.clockSkew.inSeconds}');
+    print('[✓] Initial response status code : ${response.statusCode} OK');
+    print('[!] ClockSkew ${_options.clockSkew.inSeconds}');
 
-      if (!_options.disableAutoRetryOnClockSkew &&
-          ((response.statusCode == HttpStatus.unauthorized) ||
-              (response.statusCode == HttpStatus.forbidden)) &&
-          response.headers.value(HttpHeaders.dateHeader) != null) {
-        final rawHeaderDate = response.headers.value(HttpHeaders.dateHeader)!;
-        final serverDate =
-            parseDateString(rawHeaderDate).millisecondsSinceEpoch ~/ 1000;
-        final now = getTime(parseDateString(rawHeaderDate));
+    if (!_options.disableAutoRetryOnClockSkew &&
+        ((response.statusCode == HttpStatus.unauthorized) ||
+            (response.statusCode == HttpStatus.forbidden)) &&
+        response.headers.value(HttpHeaders.dateHeader) != null) {
+      final rawHeaderDate = response.headers.value(HttpHeaders.dateHeader)!;
+      print('raw $rawHeaderDate');
+      final serverDate =
+          format.parse(rawHeaderDate).millisecondsSinceEpoch ~/ 1000;
+      print('server $serverDate');
+      final now = _getTime != null
+          ? _getTime!(response.requestOptions)
+          : DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      print('now $now');
 
-        if (((serverDate - now).abs()) > _options.clockSkew.inSeconds) {
-          print('[✓] onResponse triggered');
+      if (((serverDate - now).abs()) > _options.clockSkew.inSeconds) {
+        print('[✓] onResponse triggered');
 
-          _clockSkew = serverDate - now;
-          // Re-sign the request with the updated clockskew
-          _signRequest(response.requestOptions);
-          // Resend the request
-          _resendRequest(response.requestOptions, handler);
-        }
+        _clockSkew = serverDate - now;
+        // Re-sign the request with the updated clockskew
+        _signRequest(response.requestOptions);
+        // Resend the request
+        _resendRequest(response.requestOptions, handler);
       }
-      return handler.next(response);
-    } catch (err, stackTrace) {
-      print('[x] onResponse error');
-      throw RequestsSignatureException('$err\n$stackTrace');
     }
+    return handler.next(response);
   }
 
   Future<void> _resendRequest(
       RequestOptions options, ResponseInterceptorHandler handler) async {
-    try {
-      print('[✓] resendRequest triggered');
-      final response = await _dioInstance.fetch(options);
-      return handler.next(response);
-    } catch (error, stackTrace) {
-      print('[x] resendRequest error');
-      throw RequestsSignatureException('ResendERR\n$error\n$stackTrace');
-    }
+    print('[✓] resendRequest triggered');
+    final response = await _dioInstance.fetch(options);
+    return handler.next(response);
   }
 
   /// Signs the outgoing request with a request signature.
   Future<void> _signRequest(RequestOptions options) async {
-    print('[i] _signRequest called');
-    try {
-      print('[✓] _signRequest triggered');
-      options.headers.remove(_options.headerName);
+    print('[✓] _signRequest triggered');
+    options.headers.remove(_options.headerName);
 
-      final signatureBodySourceComponents =
-          _options.signatureBodySourceComponents.isNotEmpty
-              ? _options.signatureBodySourceComponents
-              : DefaultConstants.signatureBodySourceComponents;
+    final signatureBodySourceComponents =
+        _options.signatureBodySourceComponents.isNotEmpty
+            ? _options.signatureBodySourceComponents
+            : DefaultConstants.signatureBodySourceComponents;
 
-      Uint8List? body;
-      // Encode request body if required by signature components
-      if (options.data != null &&
-          signatureBodySourceComponents
-              .contains(SignatureBodySourceComponents.body)) {
-        body = utf8.encode(options.data.toString());
-      }
-      print('[i] _signReq Header: ${options.headers[HttpHeaders.dateHeader]}');
-
-      // Build parameters for constructing the signature body
-      final signatureBodySourceParameters = SignatureBodySourceParameters(
-          options.method,
-          options.uri,
-          options.headers
-              .map((key, value) => MapEntry(key.toString(), value.toString())),
-          _uuid.v4(), // Generate a nonce
-          _getTimestamp(options.headers[HttpHeaders.dateHeader]),
-          _options.clientId!,
-          signatureBodySourceComponents,
-          body: body);
-
-      // Build the signature body source based on parameters
-      final signatureBodySource = await _signatureBodySourceBuilder
-          .build(signatureBodySourceParameters);
-
-      // Construct parameters for creating the signature
-      final signatureBodyParameters =
-          SignatureBodyParameters(signatureBodySource, _options.clientSecret!);
-
-      // Generate the signature using the signer
-      final signatureBody =
-          await _signatureBodySigner.sign(signatureBodyParameters);
-
-      // Format the signature header based on the specified pattern
-      final signatureHeader = _options.signaturePattern
-          .replaceAll("{ClientId}", _options.clientId!)
-          .replaceAll("{Nonce}", signatureBodySourceParameters.nonce)
-          .replaceAll(
-              "{Timestamp}", signatureBodySourceParameters.timestamp.toString())
-          .replaceAll("{SignatureBody}", signatureBody);
-
-      print('[DEBUG] Generated Signature Header: $signatureHeader');
-
-      // Add the signature header to the request headers
-      options.headers[_options.headerName] = signatureHeader;
-    } catch (error, stackTrace) {
-      print('[x] _signRequest error');
-      throw RequestsSignatureException('$error\n$stackTrace');
+    Uint8List? body;
+    // Encode request body if required by signature components
+    if (options.data != null &&
+        signatureBodySourceComponents
+            .contains(SignatureBodySourceComponents.body)) {
+      body = utf8.encode(options.data.toString());
     }
+
+    // Build parameters for constructing the signature body
+    final signatureBodySourceParameters = SignatureBodySourceParameters(
+        options.method,
+        options.uri,
+        options.headers
+            .map((key, value) => MapEntry(key.toString(), value.toString())),
+        _uuid.v4(), // Generate a nonce
+        _getTimestamp(options),
+        _options.clientId!,
+        signatureBodySourceComponents,
+        body: body);
+
+    // Build the signature body source based on parameters
+    final signatureBodySource =
+        await _signatureBodySourceBuilder.build(signatureBodySourceParameters);
+
+    // Construct parameters for creating the signature
+    final signatureBodyParameters =
+        SignatureBodyParameters(signatureBodySource, _options.clientSecret!);
+
+    // Generate the signature using the signer
+    final signatureBody =
+        await _signatureBodySigner.sign(signatureBodyParameters);
+
+    // Format the signature header based on the specified pattern
+    final signatureHeader = _options.signaturePattern
+        .replaceAll("{ClientId}", _options.clientId!)
+        .replaceAll("{Nonce}", signatureBodySourceParameters.nonce)
+        .replaceAll(
+            "{Timestamp}", signatureBodySourceParameters.timestamp.toString())
+        .replaceAll("{SignatureBody}", signatureBody);
+
+    print('[DEBUG] Generated Signature Header: $signatureHeader');
+
+    // Add the signature header to the request headers
+    options.headers[_options.headerName] = signatureHeader;
   }
 
   // Returns what the client thinks is the current time.
-  static int getTime(DateTime? timestamp) {
-    if (timestamp != null && timestamp.toString().isNotEmpty) {
-      print('[i] _getTime called with timestamp: $timestamp');
+  int getTime(RequestOptions request) {
+    // Check for the 'X-Signature' header
+    // Extract the header value
+    final signature = request.headers[_options.headerName];
+    print('header name: ${_options.headerName}');
+    print(signature);
 
-      return timestamp.toUtc().millisecondsSinceEpoch ~/ 1000;
-    } else {
-      return DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
-    }
+    // Split the signature by ':' and get the 3rd element (timestamp)
+    final String signatureParts = signature.split(':');
+    final String timestampString = signatureParts[2];
+
+    print('[INFO] timestamp string from XSIG: $timestampString');
+
+    // Convert the timestamp string to integer
+    return int.parse(timestampString);
   }
 
   // Returns the timestamp, accounting for the perceived clock skew.
-  int _getTimestamp(DateTime? timestamp) {
+  int _getTimestamp(RequestOptions request) {
     print('[i] clockSkew: $_clockSkew');
-    return getTime(timestamp) + _clockSkew;
-  }
-
-  // Parses unexpected date strings formats into a DateTime object.
-  DateTime parseDateString(String dateString) {
-    List<String> possibleFormats = [
-      'E, d MMM yyyy HH:mm:ss zzz', // Standard HttpsHeaders.dateHeader format
-      'EEE, dd MMM yyyy HH:mm:ss zzz', // Alternative format with full day name
-      'EEEE, dd MMMM yyyy HH:mm:ss zzz' // Full day and month names format
-    ];
-
-    for (String formatString in possibleFormats) {
-      try {
-        DateFormat format = DateFormat(formatString);
-        return format.parse(dateString);
-      } catch (e) {
-        // If parsing fails, try the next format
-        continue;
-      }
-    }
-
-    // If no format matches, throw an error or return null
-    throw FormatException('Unable to parse date string: $dateString');
+    return getTime(request) + _clockSkew;
   }
 
   void _validateOptions() {
