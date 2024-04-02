@@ -69,7 +69,7 @@ class RequestsSignatureInterceptor extends Interceptor {
       final serverDate =
           format.parse(rawHeaderDate).millisecondsSinceEpoch ~/ 1000;
       print('server $serverDate');
-      final now = _getTime!(response.requestOptions);
+      final now = getTime(response.requestOptions);
       print('now $now');
 
       if (((serverDate - now).abs()) > _options.clockSkew.inSeconds) {
@@ -94,7 +94,7 @@ class RequestsSignatureInterceptor extends Interceptor {
 
   /// Signs the outgoing request with a request signature.
   Future<void> _signRequest(RequestOptions options) async {
-    print('[✓] _signRequest triggered');
+    print('[✓] signRequest triggered');
     options.headers.remove(_options.headerName);
 
     final signatureBodySourceComponents =
@@ -141,8 +141,6 @@ class RequestsSignatureInterceptor extends Interceptor {
         .replaceAll(
             "{Timestamp}", signatureBodySourceParameters.timestamp.toString())
         .replaceAll("{SignatureBody}", signatureBody);
-
-    print('[DEBUG] Generated Signature Header: $signatureHeader');
 
     // Add the signature header to the request headers
     options.headers[_options.headerName] = signatureHeader;
