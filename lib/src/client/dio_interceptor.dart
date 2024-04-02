@@ -69,9 +69,7 @@ class RequestsSignatureInterceptor extends Interceptor {
       final serverDate =
           format.parse(rawHeaderDate).millisecondsSinceEpoch ~/ 1000;
       print('server $serverDate');
-      final now = _getTime != null
-          ? _getTime!(response.requestOptions)
-          : DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final now = _getTime!(response.requestOptions);
       print('now $now');
 
       if (((serverDate - now).abs()) > _options.clockSkew.inSeconds) {
@@ -152,20 +150,9 @@ class RequestsSignatureInterceptor extends Interceptor {
 
   // Returns what the client thinks is the current time.
   int getTime(RequestOptions request) {
-    // Check for the 'X-Signature' header
-    // Extract the header value
-    final signature = request.headers[_options.headerName];
-    print('header name: ${_options.headerName}');
-    print(signature);
-
-    // Split the signature by ':' and get the 3rd element (timestamp)
-    final String signatureParts = signature.split(':');
-    final String timestampString = signatureParts[2];
-
-    print('[INFO] timestamp string from XSIG: $timestampString');
-
-    // Convert the timestamp string to integer
-    return int.parse(timestampString);
+    return _getTime != null
+        ? _getTime!(request)
+        : DateTime.now().millisecondsSinceEpoch ~/ 1000;
   }
 
   // Returns the timestamp, accounting for the perceived clock skew.
