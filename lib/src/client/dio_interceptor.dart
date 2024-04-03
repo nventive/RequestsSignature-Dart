@@ -24,7 +24,9 @@ class RequestsSignatureInterceptor extends Interceptor {
   final ISignatureBodySourceBuilder _signatureBodySourceBuilder;
   final ISignatureBodySigner _signatureBodySigner;
   int _clockSkew = 0;
+
   final int Function(RequestOptions request)? _getTime;
+  final String Function()? _getDateHeader;
 
   /// Constructs a new [RequestsSignatureInterceptor].
   ///
@@ -38,11 +40,13 @@ class RequestsSignatureInterceptor extends Interceptor {
     ISignatureBodySourceBuilder? signatureBodySourceBuilder,
     ISignatureBodySigner? signatureBodySigner,
     int Function(RequestOptions request)? getTime,
+    String Function()? getDateHeader,
   })  : _signatureBodySourceBuilder =
             signatureBodySourceBuilder ?? SignatureBodySourceBuilder(),
         _signatureBodySigner =
             signatureBodySigner ?? HashAlgorithmSignatureBodySigner(),
-        _getTime = getTime;
+        _getTime = getTime,
+        _getDateHeader = getDateHeader;
 
   @override
   Future onRequest(
@@ -54,7 +58,6 @@ class RequestsSignatureInterceptor extends Interceptor {
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    DateFormat format = DateFormat();
     _validateOptions();
 
     print('[✓] Initial response status code : ${response.statusCode} OK');
@@ -63,11 +66,12 @@ class RequestsSignatureInterceptor extends Interceptor {
     if (!_options.disableAutoRetryOnClockSkew &&
         ((response.statusCode == HttpStatus.unauthorized) ||
             (response.statusCode == HttpStatus.forbidden)) &&
-        response.headers.value(HttpHeaders.dateHeader) != null) {
-      final rawHeaderDate = response.headers.value(HttpHeaders.dateHeader)!;
+        (response.headers.value(HttpHeaders.dateHeader) != null || _getDateHeader != null)) {
+      final rawHeaderDate = response.headers.value(HttpHeaders.dateHeader) ?? _getDateHeader!();
       print('raw $rawHeaderDate');
-      final serverDate =
-          format.parse(rawHeaderDate).millisecondsSinceEpoch ~/ 1000;
+
+      
+      final serverDate = DateTime.parse(rawHeaderDate).millisecondsSinceEpoch ~/ 1000;
       print('server $serverDate');
       final now = getTime(response.requestOptions);
       print('now $now');
