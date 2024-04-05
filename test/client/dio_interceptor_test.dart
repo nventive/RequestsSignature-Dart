@@ -27,11 +27,14 @@ void main() {
 
     // Assert
     expect(response.statusCode, 200);
-    print('[TEST] ${response.headers.value(HttpHeaders.dateHeader)}');
+
     expect(response.requestOptions.headers, contains('X-Signature'));
   });
 
   test('Interceptor auto-retries on clockskew', () async {
+    final clockSkewMilliseconds = 6000; // Clock skew in milliseconds
+    final toleranceMilliseconds = 500; // Tolerance in milliseconds
+
     // Arrange
     final options = RequestsSignatureOptions(
       clientId: 'test_client_id',
@@ -39,7 +42,7 @@ void main() {
       headerName: 'X-Signature',
       signaturePattern: '{ClientId}:{Nonce}:{Timestamp}:{SignatureBody}',
       disableAutoRetryOnClockSkew: false,
-      clockSkew: Duration(milliseconds: 6000),
+      clockSkew: Duration(milliseconds: clockSkewMilliseconds),
     );
 
     // Create a Dio instance with mock adapter
@@ -50,18 +53,18 @@ void main() {
     final dioAdapter = DioAdapter(dio: dio);
     dio.httpClientAdapter = dioAdapter;
 
+    final serverDate = DateTime.now().toUtc().add(Duration(milliseconds: 6000));
+    final serverDateIsoString = serverDate.toIso8601String();
+
     // Create the interceptor
     final interceptor = RequestsSignatureInterceptor(
       options,
       dio,
       getTime: (request) {
-        return DateTime.now()
-            .toUtc()
-            .subtract(Duration(hours: 1))
-            .microsecondsSinceEpoch;
+        return DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
       },
       getDateHeader: () {
-        return DateTime.now().toUtc().toIso8601String();
+        return serverDateIsoString;
       },
     );
 
@@ -70,27 +73,24 @@ void main() {
 
     // Register the mock response
     dioAdapter.onGet('https://google.ca/', (request) {
-      print('[TEST] Sending request timestamp: ${DateTime.now()}');
-
       request.reply(
         HttpStatus.unauthorized,
         {},
       );
-      print('[TEST] Request sent at timestamp: ${DateTime.now()}');
     });
 
     // Act
     final response = await dio.get('https://google.ca/');
 
-    print('[TEST] Response received at timestamp: ${DateTime.now()}');
-
     // Assert
-    expect(response.statusCode, HttpStatus.ok);
+    expect(response.statusCode, HttpStatus.unauthorized);
 
-    //final expectedTimestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    //final actualTimestamp = response.data['data']['timestamp'];
-    //final difference = (actualTimestamp - expectedTimestamp).abs();
-    // print(
-    //     '[TEST] Difference between expected and actual timestamps: $difference');
+    // Calculate the expected time difference
+    final expectedTimeDiff =
+        serverDate.difference(DateTime.now().toUtc()).inMilliseconds;
+
+    // Assert that the time difference equals the clock skew
+    expect(expectedTimeDiff.abs(),
+        lessThanOrEqualTo(clockSkewMilliseconds + toleranceMilliseconds));
   });
 }

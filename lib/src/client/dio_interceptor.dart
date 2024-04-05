@@ -3,7 +3,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:intl/intl.dart';
 import 'package:requests_signature_dart/requests_signature_dart.dart';
 
 import 'dart:convert';
@@ -51,7 +50,6 @@ class RequestsSignatureInterceptor extends Interceptor {
   @override
   Future onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
-    print('[✓] onRequest triggered');
     await _signRequest(options);
     return handler.next(options);
   }
@@ -60,25 +58,20 @@ class RequestsSignatureInterceptor extends Interceptor {
   void onResponse(Response response, ResponseInterceptorHandler handler) {
     _validateOptions();
 
-    print('[✓] Initial response status code : ${response.statusCode} OK');
-    print('[!] ClockSkew ${_options.clockSkew.inSeconds}');
-
     if (!_options.disableAutoRetryOnClockSkew &&
         ((response.statusCode == HttpStatus.unauthorized) ||
             (response.statusCode == HttpStatus.forbidden)) &&
-        (response.headers.value(HttpHeaders.dateHeader) != null || _getDateHeader != null)) {
-      final rawHeaderDate = response.headers.value(HttpHeaders.dateHeader) ?? _getDateHeader!();
-      print('raw $rawHeaderDate');
+        (response.headers.value(HttpHeaders.dateHeader) != null ||
+            _getDateHeader != null)) {
+      final rawHeaderDate =
+          response.headers.value(HttpHeaders.dateHeader) ?? _getDateHeader!();
 
-      
-      final serverDate = DateTime.parse(rawHeaderDate).millisecondsSinceEpoch ~/ 1000;
-      print('server $serverDate');
+      final serverDate =
+          DateTime.parse(rawHeaderDate).millisecondsSinceEpoch ~/ 1000;
+
       final now = getTime(response.requestOptions);
-      print('now $now');
 
       if (((serverDate - now).abs()) > _options.clockSkew.inSeconds) {
-        print('[✓] onResponse triggered');
-
         _clockSkew = serverDate - now;
         // Re-sign the request with the updated clockskew
         _signRequest(response.requestOptions);
@@ -91,14 +84,12 @@ class RequestsSignatureInterceptor extends Interceptor {
 
   Future<void> _resendRequest(
       RequestOptions options, ResponseInterceptorHandler handler) async {
-    print('[✓] resendRequest triggered');
     final response = await _dioInstance.fetch(options);
     return handler.next(response);
   }
 
   /// Signs the outgoing request with a request signature.
   Future<void> _signRequest(RequestOptions options) async {
-    print('[✓] signRequest triggered');
     options.headers.remove(_options.headerName);
 
     final signatureBodySourceComponents =
@@ -159,7 +150,6 @@ class RequestsSignatureInterceptor extends Interceptor {
 
   // Returns the timestamp, accounting for the perceived clock skew.
   int _getTimestamp(RequestOptions request) {
-    print('[i] clockSkew: $_clockSkew');
     return getTime(request) + _clockSkew;
   }
 
