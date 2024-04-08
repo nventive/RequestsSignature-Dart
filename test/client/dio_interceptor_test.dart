@@ -51,6 +51,9 @@ void main() {
       validateStatus: (status) => true,
     ));
 
+    // Counter to track the number of requests received by the mock server
+    int requestCount = 0;
+
     final dioAdapter = DioAdapter(dio: dio);
     dio.httpClientAdapter = dioAdapter;
 
@@ -74,23 +77,48 @@ void main() {
 
     // Register the mock response
     dioAdapter.onGet('https://google.ca/', (request) {
-      // Check if the request timestamp is adjusted for clock skew or not
-      final timestampAdjusted = options.clockSkew != 0;
+      requestCount++; // Increment request count
 
-      request.reply(
-        timestampAdjusted ? HttpStatus.unauthorized : HttpStatus.ok,
-        {},
-      );
+      // Check if the server returns its date time header
+      final hasServerDateHeader = serverDateIsoString.isNotEmpty;
+
+      // Respond with unauthorized or ok based on clock skew and tolerance settings
+      if (options.disableAutoRetryOnClockSkew || toleranceMS < clockskewMS) {
+        request.reply(HttpStatus.unauthorized, {});
+      } else if (hasServerDateHeader) {
+        request.reply(HttpStatus.ok, {});
+      } else {
+        request.reply(HttpStatus.unauthorized, {});
+      }
     });
 
     // Act
     final response = await dio.get('https://google.ca/');
 
     // Assert
-    if (options.clockSkew != 0) {
-      expect(response.statusCode, HttpStatus.unauthorized);
-    } else {
-      expect(response.statusCode, HttpStatus.ok);
+    expect(response.statusCode, HttpStatus.unauthorized);
+
+    // Validate auto-retry doesn't work when clock skew option is disabled
+    if (options.disableAutoRetryOnClockSkew) {
+      expect(requestCount, 1);
+    }
+
+    // Validate auto-retry doesn't work when clock skew option is enabled but tolerance is too low
+    if (!options.disableAutoRetryOnClockSkew && toleranceMS < clockskewMS) {
+      expect(requestCount, 1);
+    }
+
+    // Validate auto-retry works when clock skew option is enabled and tolerance is high enough
+    if (!options.disableAutoRetryOnClockSkew && toleranceMS >= clockskewMS) {
+      expect(requestCount, 2);
+    }
+
+    // Validate auto-retry doesn't work when clock skew option is enabled, tolerance is high enough,
+    // but the server doesn't return its date time header
+    if (!options.disableAutoRetryOnClockSkew &&
+        toleranceMS >= clockskewMS &&
+        !serverDateIsoString.isNotEmpty) {
+      expect(requestCount, 1);
     }
 
     // Calculate the expected time difference
