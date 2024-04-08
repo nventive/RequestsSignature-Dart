@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:http_mock_adapter/http_mock_adapter.dart';
+
 import 'package:requests_signature_dart/src/client/requests_signature_options.dart';
 import 'package:test/test.dart';
 import 'package:requests_signature_dart/requests_signature_dart.dart';
@@ -32,8 +33,8 @@ void main() {
   });
 
   test('Interceptor auto-retries on clockskew', () async {
-    final clockSkewMilliseconds = 6000; // Clock skew in milliseconds
-    final toleranceMilliseconds = 500; // Tolerance in milliseconds
+    final clockskewMS = 6000; // Clock skew in milliseconds
+    final toleranceMS = 500; // Tolerance in milliseconds
 
     // Arrange
     final options = RequestsSignatureOptions(
@@ -42,7 +43,7 @@ void main() {
       headerName: 'X-Signature',
       signaturePattern: '{ClientId}:{Nonce}:{Timestamp}:{SignatureBody}',
       disableAutoRetryOnClockSkew: false,
-      clockSkew: Duration(milliseconds: clockSkewMilliseconds),
+      clockSkew: Duration(milliseconds: clockskewMS),
     );
 
     // Create a Dio instance with mock adapter
@@ -73,8 +74,11 @@ void main() {
 
     // Register the mock response
     dioAdapter.onGet('https://google.ca/', (request) {
+      // Check if the request timestamp is adjusted for clock skew or not
+      final timestampAdjusted = options.clockSkew != 0;
+
       request.reply(
-        HttpStatus.unauthorized,
+        timestampAdjusted ? HttpStatus.unauthorized : HttpStatus.ok,
         {},
       );
     });
@@ -83,14 +87,17 @@ void main() {
     final response = await dio.get('https://google.ca/');
 
     // Assert
-    expect(response.statusCode, HttpStatus.unauthorized);
+    if (options.clockSkew != 0) {
+      expect(response.statusCode, HttpStatus.unauthorized);
+    } else {
+      expect(response.statusCode, HttpStatus.ok);
+    }
 
     // Calculate the expected time difference
-    final expectedTimeDiff =
-        serverDate.difference(DateTime.now().toUtc()).inMilliseconds;
+    final now = DateTime.now().toUtc();
+    final expectedDiff = serverDate.difference(now).inMilliseconds;
 
     // Assert that the time difference equals the clock skew
-    expect(expectedTimeDiff.abs(),
-        lessThanOrEqualTo(clockSkewMilliseconds + toleranceMilliseconds));
+    expect(expectedDiff.abs(), lessThanOrEqualTo(clockskewMS + toleranceMS));
   });
 }
