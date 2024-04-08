@@ -15,7 +15,15 @@ and is [Dart 3](https://medium.com/dartlang/announcing-dart-3-53f065a10635) comp
 
 ## Getting Started
 
-##### Implementing Requests Signature Validation in Dart/Flutter app project:
+This project provides functionality to implement HMAC signature to HTTP and HTTPS requests in Dart and/or Flutter applications. It utilizes Dio interceptors to seamlessly integrate signature generation and validation into your network requests.
+
+The recipe for implementing request signature validation starts with configuring the necessary options for signature generation, including client ID, client secret, header name, signature pattern, clock skew, and auto retry behavior on clock skew detection. These options ensure secure and reliable signature generation and validation.
+
+For client-side implementation in Dart/Flutter, you can follow the provided example code and integrate the RequestsSignatureInterceptor into your Dio client. This interceptor automatically adds the signature header to outgoing requests and validates incoming responses.
+
+However, it's important to note that this Dart package focuses on the client-side part of the recipe. For the server-side implementation, you can refer to the corresponding [.NET repository](https://github.com/nventive/RequestsSignature/tree/master), which provides the necessary components for validating incoming requests and generating appropriate responses.
+
+### Implementing Requests Signature Validation in Dart/Flutter app project:
 
 Install the package via command line:
 
@@ -58,7 +66,7 @@ void main() {
     headerName: 'X-Request-Signature', // Name of the custom header for the signature
     signaturePattern: '{ClientId}:{Nonce}:{Timestamp}:{SignatureBody}', // Pattern for the signature header value
     clockSkew: Duration(seconds: 30), // Clock skew duration (30 seconds in this example)
-    disableAutoRetryOnClockSkew: false, // Enable auto retry on clock skew if set to true
+    disableAutoRetryOnClockSkew: false, // Disable auto retry on clock skew if set to true
   );
 
   // Instantiate interceptor
@@ -171,13 +179,6 @@ Signature components (the source for the SignatureBody HMAC value) is a binary v
 - Request local path: UTF-8 encoded binary values of the Request Uri local path (e.g. `/api/v1/users`)
 - Request query string: UTF-8 encoded binary values of the Request Query string, including the leading `?` (e.g. `?q=search`)
 - Request body: Raw bytes of the request body
-
-*See the Configuration section on how to customize the signature.*
-
-### Nonce repository
-
-By default, nonce are not stored and checked, which means that you are vulnerable to
-replay attacks for the duration of the clock skew.
 
 ### Auto retry on clock skew detection (client)
 
