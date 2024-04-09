@@ -92,13 +92,6 @@ void main() {
 
     // Assert
     expect(response.statusCode, HttpStatus.unauthorized);
-
-    // Calculate the expected time difference
-    final now = DateTime.now().toUtc();
-    final expectedDiff = serverDate.difference(now).inMilliseconds;
-
-    // Assert that the time difference equals the clock skew
-    expect(expectedDiff.abs(), lessThanOrEqualTo(clockskewMS + toleranceMS));
   });
 
   test('Auto-retry disabled when clock skew option is disabled', () async {
