@@ -51,9 +51,6 @@ void main() {
       validateStatus: (status) => true,
     ));
 
-    // Counter to track the number of requests received by the mock server
-    int requestCount = 0;
-
     final dioAdapter = DioAdapter(dio: dio);
     dio.httpClientAdapter = dioAdapter;
 
@@ -77,8 +74,6 @@ void main() {
 
     // Register the mock response
     dioAdapter.onGet('https://google.ca/', (request) {
-      requestCount++; // Increment request count
-
       // Check if the server returns its date time header
       final hasServerDateHeader = serverDateIsoString.isNotEmpty;
 
@@ -98,28 +93,104 @@ void main() {
     // Assert
     expect(response.statusCode, HttpStatus.unauthorized);
 
-    // Validate auto-retry doesn't work when clock skew option is disabled
-    if (options.disableAutoRetryOnClockSkew) {
-      expect(requestCount, 1);
-    }
+    // Calculate the expected time difference
+    final now = DateTime.now().toUtc();
+    final expectedDiff = serverDate.difference(now).inMilliseconds;
 
-    // Validate auto-retry doesn't work when clock skew option is enabled but tolerance is too low
-    if (!options.disableAutoRetryOnClockSkew && toleranceMS < clockskewMS) {
-      expect(requestCount, 1);
-    }
+    // Assert that the time difference equals the clock skew
+    expect(expectedDiff.abs(), lessThanOrEqualTo(clockskewMS + toleranceMS));
+  });
 
-    // Validate auto-retry works when clock skew option is enabled and tolerance is high enough
-    if (!options.disableAutoRetryOnClockSkew && toleranceMS >= clockskewMS) {
-      expect(requestCount, 2);
-    }
+  test('Auto-retry disabled when clock skew option is disabled', () async {
+    final options = RequestsSignatureOptions(
+      clientId: 'test_client_id',
+      clientSecret: 'test_client_secret',
+      headerName: 'X-Signature',
+      signaturePattern: '{ClientId}:{Nonce}:{Timestamp}:{SignatureBody}',
+      disableAutoRetryOnClockSkew: true,
+    );
 
-    // Validate auto-retry doesn't work when clock skew option is enabled, tolerance is high enough,
-    // but the server doesn't return its date time header
-    if (!options.disableAutoRetryOnClockSkew &&
-        toleranceMS >= clockskewMS &&
-        !serverDateIsoString.isNotEmpty) {
-      expect(requestCount, 1);
-    }
+    final dio = Dio();
+    final dioAdapter = DioAdapter(dio: dio);
+    dio.httpClientAdapter = dioAdapter;
+
+    final serverDate = DateTime.now().toUtc().add(Duration(milliseconds: 6000));
+    final serverDateIsoString = serverDate.toIso8601String();
+
+    // Create the interceptor
+    final interceptor = RequestsSignatureInterceptor(
+      options,
+      dio,
+      getTime: (request) {
+        return DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
+      },
+      getDateHeader: () {
+        return serverDateIsoString;
+      },
+    );
+
+    // Add the interceptor to Dio
+    dio.interceptors.add(interceptor);
+
+    int requestCount = 0;
+
+    dioAdapter.onGet('https://google.ca/', (request) {
+      requestCount++;
+      request.reply(HttpStatus.ok, {});
+    });
+
+    await dio.get('https://google.ca/');
+
+    expect(requestCount, 1);
+  });
+
+  test('Auto-retry disabled when tolerance is too low', () async {
+    final clockskewMS = 6000; // Clock skew in milliseconds
+    final toleranceMS = 500; // Tolerance in milliseconds
+
+    final options = RequestsSignatureOptions(
+      clientId: 'test_client_id',
+      clientSecret: 'test_client_secret',
+      headerName: 'X-Signature',
+      signaturePattern: '{ClientId}:{Nonce}:{Timestamp}:{SignatureBody}',
+      disableAutoRetryOnClockSkew: false,
+      clockSkew: Duration(milliseconds: clockskewMS),
+    );
+
+    final dio = Dio();
+    final dioAdapter = DioAdapter(dio: dio);
+    dio.httpClientAdapter = dioAdapter;
+
+    final serverDate = DateTime.now().toUtc().add(Duration(milliseconds: 6000));
+    final serverDateIsoString = serverDate.toIso8601String();
+
+    // Create the interceptor
+    final interceptor = RequestsSignatureInterceptor(
+      options,
+      dio,
+      getTime: (request) {
+        return DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
+      },
+      getDateHeader: () {
+        return serverDateIsoString;
+      },
+    );
+
+    // Add the interceptor to Dio
+    dio.interceptors.add(interceptor);
+
+    int requestCount = 0;
+
+    dioAdapter.onGet('https://google.ca/', (request) {
+      requestCount++;
+      request.reply(HttpStatus.ok, {});
+    });
+
+    // Act
+    final response = await dio.get('https://google.ca/');
+
+    // Assert
+    expect(response.statusCode, HttpStatus.ok);
 
     // Calculate the expected time difference
     final now = DateTime.now().toUtc();
@@ -127,5 +198,51 @@ void main() {
 
     // Assert that the time difference equals the clock skew
     expect(expectedDiff.abs(), lessThanOrEqualTo(clockskewMS + toleranceMS));
+
+    expect(requestCount, 1);
+  });
+
+  test('Auto-retry disnabled when no date header', () async {
+    final clockskewMS = 6000; // Clock skew in milliseconds
+    final toleranceMS = 1200; // Tolerance in milliseconds
+
+    final options = RequestsSignatureOptions(
+      clientId: 'test_client_id',
+      clientSecret: 'test_client_secret',
+      headerName: 'X-Signature',
+      signaturePattern: '{ClientId}:{Nonce}:{Timestamp}:{SignatureBody}',
+      disableAutoRetryOnClockSkew: false,
+      clockSkew: Duration(milliseconds: 6000),
+    );
+
+    final dio = Dio();
+    final dioAdapter = DioAdapter(dio: dio);
+    dio.httpClientAdapter = dioAdapter;
+
+    final serverDate = DateTime.now().toUtc().add(Duration(milliseconds: 6000));
+
+    // Create the interceptor
+    final interceptor = RequestsSignatureInterceptor(options, dio);
+
+    // Add the interceptor to Dio
+    dio.interceptors.add(interceptor);
+
+    int requestCount = 0;
+
+    dioAdapter.onGet('https://google.ca/', (request) {
+      requestCount++;
+      request.reply(HttpStatus.ok, {});
+    });
+
+    await dio.get('https://google.ca/');
+
+    // Calculate the expected time difference
+    final now = DateTime.now().toUtc();
+    final expectedDiff = serverDate.difference(now).inMilliseconds;
+
+    // Assert that the time difference equals the clock skew
+    expect(expectedDiff.abs(), lessThanOrEqualTo(clockskewMS + toleranceMS));
+
+    expect(requestCount, 1);
   });
 }
