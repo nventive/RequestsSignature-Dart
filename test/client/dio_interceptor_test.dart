@@ -195,7 +195,7 @@ void main() {
     expect(requestCount, 1);
   });
 
-  test('Auto-retry disnabled when no date header', () async {
+  test('Auto-retry disabled when no date header', () async {
     final clockskewMS = 6000; // Clock skew in milliseconds
     final toleranceMS = 1200; // Tolerance in milliseconds
 
