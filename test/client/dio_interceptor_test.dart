@@ -197,7 +197,6 @@ void main() {
 
   test('Auto-retry disabled when no date header', () async {
     final clockskewMS = 6000; // Clock skew in milliseconds
-    final toleranceMS = 1200; // Tolerance in milliseconds
 
     final options = RequestsSignatureOptions(
       clientId: 'test_client_id',
@@ -205,14 +204,12 @@ void main() {
       headerName: 'X-Signature',
       signaturePattern: '{ClientId}:{Nonce}:{Timestamp}:{SignatureBody}',
       disableAutoRetryOnClockSkew: false,
-      clockSkew: Duration(milliseconds: 6000),
+      clockSkew: Duration(milliseconds: clockskewMS),
     );
 
     final dio = Dio();
     final dioAdapter = DioAdapter(dio: dio);
     dio.httpClientAdapter = dioAdapter;
-
-    final serverDate = DateTime.now().toUtc().add(Duration(milliseconds: 6000));
 
     // Create the interceptor
     final interceptor = RequestsSignatureInterceptor(options, dio);
@@ -228,13 +225,6 @@ void main() {
     });
 
     await dio.get('https://google.ca/');
-
-    // Calculate the expected time difference
-    final now = DateTime.now().toUtc();
-    final expectedDiff = serverDate.difference(now).inMilliseconds;
-
-    // Assert that the time difference equals the clock skew
-    expect(expectedDiff.abs(), lessThanOrEqualTo(clockskewMS + toleranceMS));
 
     expect(requestCount, 1);
   });
