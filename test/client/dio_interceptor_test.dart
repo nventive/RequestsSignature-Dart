@@ -7,15 +7,18 @@ import 'package:test/test.dart';
 import 'package:requests_signature_dart/requests_signature_dart.dart';
 
 void main() {
+  final String baseURL = 'https://google.ca/';
+  final String headerName = 'X-Signature';
+
   test('Interceptor adds signature header to GET request', () async {
     final dio = Dio();
     final interceptor = _setUpInterceptor();
     dio.interceptors.add(interceptor);
 
-    final response = await dio.get('https://google.ca');
+    final response = await dio.get(baseURL);
 
     expect(response.statusCode, 200);
-    expect(response.requestOptions.headers, contains('X-Signature'));
+    expect(response.requestOptions.headers, contains(headerName));
   });
 
   test('Interceptor auto-retry behavior based on clock skew configuration',
@@ -27,7 +30,7 @@ void main() {
     final options = RequestsSignatureOptions(
       clientId: 'test_client_id',
       clientSecret: 'test_client_secret',
-      headerName: 'X-Signature',
+      headerName: headerName,
       signaturePattern: '{ClientId}:{Nonce}:{Timestamp}:{SignatureBody}',
       disableAutoRetryOnClockSkew: false,
       clockSkew: Duration(milliseconds: clockskewMS),
@@ -61,7 +64,7 @@ void main() {
     dio.interceptors.add(interceptor);
 
     // Register the mock response
-    dioAdapter.onGet('https://google.ca/', (request) {
+    dioAdapter.onGet(baseURL, (request) {
       // Respond with unauthorized or ok based on clock skew and tolerance settings
       if (options.disableAutoRetryOnClockSkew || toleranceMS < clockskewMS) {
         // Set the expected date header in the response
@@ -74,7 +77,7 @@ void main() {
     });
 
     // Act
-    final response = await dio.get('https://google.ca/');
+    final response = await dio.get(baseURL);
 
     // Assert
     expect(response.statusCode, HttpStatus.unauthorized);
@@ -85,7 +88,7 @@ void main() {
     final interceptor = _setUpInterceptor(autoRetry: false);
     dio.interceptors.add(interceptor);
 
-    final response = await dio.get('https://google.ca/');
+    final response = await dio.get(baseURL);
 
     expect(response.statusCode, HttpStatus.ok);
   });
@@ -95,7 +98,7 @@ void main() {
     final interceptor = _setUpInterceptor(autoRetry: true);
     dio.interceptors.add(interceptor);
 
-    final response = await dio.get('https://google.ca/');
+    final response = await dio.get(baseURL);
 
     expect(response.statusCode, HttpStatus.ok);
   });
@@ -105,18 +108,23 @@ void main() {
     final interceptor = _setUpInterceptor(autoRetry: true);
     dio.interceptors.add(interceptor);
 
-    final response = await dio.get('https://google.ca/');
+    final response = await dio.get(baseURL);
 
     expect(response.statusCode, HttpStatus.ok);
   });
 }
 
 RequestsSignatureInterceptor _setUpInterceptor({bool autoRetry = false}) {
+  final String HEADER_NAME = 'X-Signature';
+  final String CLIENT_ID = 'test_client_id';
+  final String CLIENT_SECRET = 'test_client_secret';
+  final String PATTERN = '{ClientId}:{Nonce}:{Timestamp}:{SignatureBody}';
+
   final options = RequestsSignatureOptions(
-    clientId: 'test_client_id',
-    clientSecret: 'test_client_secret',
-    headerName: 'X-Signature',
-    signaturePattern: '{ClientId}:{Nonce}:{Timestamp}:{SignatureBody}',
+    clientId: CLIENT_ID,
+    clientSecret: CLIENT_SECRET,
+    headerName: HEADER_NAME,
+    signaturePattern: PATTERN,
     disableAutoRetryOnClockSkew: !autoRetry,
     clockSkew: Duration(milliseconds: 6000),
   );
