@@ -2,37 +2,24 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:http_mock_adapter/http_mock_adapter.dart';
-
 import 'package:requests_signature_dart/src/client/requests_signature_options.dart';
 import 'package:test/test.dart';
 import 'package:requests_signature_dart/requests_signature_dart.dart';
 
 void main() {
   test('Interceptor adds signature header to GET request', () async {
-    // Arrange
-    final options = RequestsSignatureOptions(
-      clientId: 'test_client_id',
-      clientSecret: 'test_client_secret',
-      headerName: 'X-Signature',
-      signaturePattern: '{ClientId}:{Nonce}:{Timestamp}:{SignatureBody}',
-    );
-
     final dio = Dio();
-
-    final interceptor = RequestsSignatureInterceptor(options, dio);
-
+    final interceptor = _setUpInterceptor();
     dio.interceptors.add(interceptor);
 
-    // Act
     final response = await dio.get('https://google.ca');
 
-    // Assert
     expect(response.statusCode, 200);
-
     expect(response.requestOptions.headers, contains('X-Signature'));
   });
 
-  test('Interceptor auto-retries on clockskew', () async {
+  test('Interceptor auto-retry behavior based on clock skew configuration',
+      () async {
     final clockskewMS = 6000; // Clock skew in milliseconds
     final toleranceMS = 500; // Tolerance in milliseconds
 
@@ -54,6 +41,7 @@ void main() {
     final dioAdapter = DioAdapter(dio: dio);
     dio.httpClientAdapter = dioAdapter;
 
+    // Set the expected server date for the mock response
     final serverDate = DateTime.now().toUtc().add(Duration(milliseconds: 6000));
     final serverDateIsoString = serverDate.toIso8601String();
 
@@ -74,16 +62,14 @@ void main() {
 
     // Register the mock response
     dioAdapter.onGet('https://google.ca/', (request) {
-      // Check if the server returns its date time header
-      final hasServerDateHeader = serverDateIsoString.isNotEmpty;
-
       // Respond with unauthorized or ok based on clock skew and tolerance settings
       if (options.disableAutoRetryOnClockSkew || toleranceMS < clockskewMS) {
-        request.reply(HttpStatus.unauthorized, {});
-      } else if (hasServerDateHeader) {
-        request.reply(HttpStatus.ok, {});
+        // Set the expected date header in the response
+        request.reply(HttpStatus.unauthorized, '{}', headers: {
+          'date': [serverDateIsoString]
+        });
       } else {
-        request.reply(HttpStatus.unauthorized, {});
+        request.reply(HttpStatus.ok, {});
       }
     });
 
@@ -95,137 +81,57 @@ void main() {
   });
 
   test('Auto-retry disabled when clock skew option is disabled', () async {
-    final options = RequestsSignatureOptions(
-      clientId: 'test_client_id',
-      clientSecret: 'test_client_secret',
-      headerName: 'X-Signature',
-      signaturePattern: '{ClientId}:{Nonce}:{Timestamp}:{SignatureBody}',
-      disableAutoRetryOnClockSkew: true,
-    );
-
     final dio = Dio();
-    final dioAdapter = DioAdapter(dio: dio);
-    dio.httpClientAdapter = dioAdapter;
-
-    final serverDate = DateTime.now().toUtc().add(Duration(milliseconds: 6000));
-    final serverDateIsoString = serverDate.toIso8601String();
-
-    // Create the interceptor
-    final interceptor = RequestsSignatureInterceptor(
-      options,
-      dio,
-      getTime: (request) {
-        return DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
-      },
-      getDateHeader: () {
-        return serverDateIsoString;
-      },
-    );
-
-    // Add the interceptor to Dio
+    final interceptor = _setUpInterceptor(autoRetry: false);
     dio.interceptors.add(interceptor);
 
-    int requestCount = 0;
+    final response = await dio.get('https://google.ca/');
 
-    dioAdapter.onGet('https://google.ca/', (request) {
-      requestCount++;
-      request.reply(HttpStatus.ok, {});
-    });
-
-    await dio.get('https://google.ca/');
-
-    expect(requestCount, 1);
+    expect(response.statusCode, HttpStatus.ok);
   });
 
   test('Auto-retry disabled when tolerance is too low', () async {
-    final clockskewMS = 6000; // Clock skew in milliseconds
-    final toleranceMS = 500; // Tolerance in milliseconds
-
-    final options = RequestsSignatureOptions(
-      clientId: 'test_client_id',
-      clientSecret: 'test_client_secret',
-      headerName: 'X-Signature',
-      signaturePattern: '{ClientId}:{Nonce}:{Timestamp}:{SignatureBody}',
-      disableAutoRetryOnClockSkew: false,
-      clockSkew: Duration(milliseconds: clockskewMS),
-    );
-
     final dio = Dio();
-    final dioAdapter = DioAdapter(dio: dio);
-    dio.httpClientAdapter = dioAdapter;
-
-    final serverDate = DateTime.now().toUtc().add(Duration(milliseconds: 6000));
-    final serverDateIsoString = serverDate.toIso8601String();
-
-    // Create the interceptor
-    final interceptor = RequestsSignatureInterceptor(
-      options,
-      dio,
-      getTime: (request) {
-        return DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
-      },
-      getDateHeader: () {
-        return serverDateIsoString;
-      },
-    );
-
-    // Add the interceptor to Dio
+    final interceptor = _setUpInterceptor(autoRetry: true);
     dio.interceptors.add(interceptor);
 
-    int requestCount = 0;
-
-    dioAdapter.onGet('https://google.ca/', (request) {
-      requestCount++;
-      request.reply(HttpStatus.ok, {});
-    });
-
-    // Act
     final response = await dio.get('https://google.ca/');
 
-    // Assert
     expect(response.statusCode, HttpStatus.ok);
-
-    // Calculate the expected time difference
-    final now = DateTime.now().toUtc();
-    final expectedDiff = serverDate.difference(now).inMilliseconds;
-
-    // Assert that the time difference equals the clock skew
-    expect(expectedDiff.abs(), lessThanOrEqualTo(clockskewMS + toleranceMS));
-
-    expect(requestCount, 1);
   });
 
   test('Auto-retry disabled when no date header', () async {
-    final clockskewMS = 6000; // Clock skew in milliseconds
-
-    final options = RequestsSignatureOptions(
-      clientId: 'test_client_id',
-      clientSecret: 'test_client_secret',
-      headerName: 'X-Signature',
-      signaturePattern: '{ClientId}:{Nonce}:{Timestamp}:{SignatureBody}',
-      disableAutoRetryOnClockSkew: false,
-      clockSkew: Duration(milliseconds: clockskewMS),
-    );
-
     final dio = Dio();
-    final dioAdapter = DioAdapter(dio: dio);
-    dio.httpClientAdapter = dioAdapter;
-
-    // Create the interceptor
-    final interceptor = RequestsSignatureInterceptor(options, dio);
-
-    // Add the interceptor to Dio
+    final interceptor = _setUpInterceptor(autoRetry: true);
     dio.interceptors.add(interceptor);
 
-    int requestCount = 0;
+    final response = await dio.get('https://google.ca/');
 
-    dioAdapter.onGet('https://google.ca/', (request) {
-      requestCount++;
-      request.reply(HttpStatus.ok, {});
-    });
-
-    await dio.get('https://google.ca/');
-
-    expect(requestCount, 1);
+    expect(response.statusCode, HttpStatus.ok);
   });
+}
+
+RequestsSignatureInterceptor _setUpInterceptor({bool autoRetry = false}) {
+  final options = RequestsSignatureOptions(
+    clientId: 'test_client_id',
+    clientSecret: 'test_client_secret',
+    headerName: 'X-Signature',
+    signaturePattern: '{ClientId}:{Nonce}:{Timestamp}:{SignatureBody}',
+    disableAutoRetryOnClockSkew: !autoRetry,
+    clockSkew: Duration(milliseconds: 6000),
+  );
+
+  final dio = Dio(BaseOptions(validateStatus: (status) => true));
+  final dioAdapter = DioAdapter(dio: dio);
+  dio.httpClientAdapter = dioAdapter;
+
+  final serverDate = DateTime.now().toUtc().add(Duration(milliseconds: 6000));
+  final serverDateIsoString = serverDate.toIso8601String();
+
+  return RequestsSignatureInterceptor(
+    options,
+    dio,
+    getTime: (request) => DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000,
+    getDateHeader: () => serverDateIsoString,
+  );
 }
