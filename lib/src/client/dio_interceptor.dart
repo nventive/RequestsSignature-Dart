@@ -25,7 +25,6 @@ class RequestsSignatureInterceptor extends Interceptor {
   int _clockSkew = 0;
 
   final int Function(RequestOptions request)? _getTime;
-  final String Function()? _getDateHeader;
 
   /// Constructs a new [RequestsSignatureInterceptor].
   ///
@@ -44,8 +43,7 @@ class RequestsSignatureInterceptor extends Interceptor {
             signatureBodySourceBuilder ?? SignatureBodySourceBuilder(),
         _signatureBodySigner =
             signatureBodySigner ?? HashAlgorithmSignatureBodySigner(),
-        _getTime = getTime,
-        _getDateHeader = getDateHeader;
+        _getTime = getTime;
 
   @override
   Future onRequest(
@@ -61,13 +59,11 @@ class RequestsSignatureInterceptor extends Interceptor {
     if (!_options.disableAutoRetryOnClockSkew &&
         ((response.statusCode == HttpStatus.unauthorized) ||
             (response.statusCode == HttpStatus.forbidden)) &&
-        (response.headers.value(HttpHeaders.dateHeader) != null ||
-            _getDateHeader != null)) {
-      final rawHeaderDate =
-          response.headers.value(HttpHeaders.dateHeader) ?? _getDateHeader!();
+        (response.headers.value(HttpHeaders.dateHeader) != null)) {
+      final rawHeaderDate = response.headers.value(HttpHeaders.dateHeader);
 
       final serverDate =
-          DateTime.parse(rawHeaderDate).millisecondsSinceEpoch ~/ 1000;
+          DateTime.parse(rawHeaderDate!).millisecondsSinceEpoch ~/ 1000;
 
       final now = getTime(response.requestOptions);
 
