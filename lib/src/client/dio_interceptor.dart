@@ -38,7 +38,6 @@ class RequestsSignatureInterceptor extends Interceptor {
     ISignatureBodySourceBuilder? signatureBodySourceBuilder,
     ISignatureBodySigner? signatureBodySigner,
     int Function(RequestOptions request)? getTime,
-    String Function()? getDateHeader,
   })  : _signatureBodySourceBuilder =
             signatureBodySourceBuilder ?? SignatureBodySourceBuilder(),
         _signatureBodySigner =
