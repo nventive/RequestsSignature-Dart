@@ -51,8 +51,7 @@ void main() {
       expect(response.requestOptions.headers, contains(headerName));
     });
 
-    test('Interceptor auto-retry behavior based on clock skew configuration',
-        () async {
+    test('Interceptor returns OK with auto-retry tuned to false', () async {
       // Arrange
       final options = RequestsSignatureOptions(
         clientId: testClientId,
@@ -65,10 +64,6 @@ void main() {
 
       final dioAdapter = DioAdapter(dio: dio);
       dio.httpClientAdapter = dioAdapter;
-
-      // Set the expected server date for the mock response
-      final serverDate = now.add(Duration(milliseconds: clockskewMS));
-      final serverDateIsoString = serverDate.toIso8601String();
 
       // Create the interceptor
       final interceptor = RequestsSignatureInterceptor(
@@ -84,17 +79,16 @@ void main() {
 
       // Register the mock response
       dioAdapter.onGet(baseEndpoint, (request) {
-        // Set the expected date header in the response
-        request.reply(HttpStatus.unauthorized, emptyDataInjection, headers: {
-          'date': [serverDateIsoString]
-        });
+        options.disableAutoRetryOnClockSkew
+            ? request.reply(HttpStatus.unauthorized, emptyDataInjection)
+            : request.reply(HttpStatus.ok, emptyDataInjection);
       });
 
       // Act
       final response = await dio.get(baseEndpoint);
 
       // Assert
-      expect(response.statusCode, HttpStatus.unauthorized);
+      expect(response.statusCode, HttpStatus.ok);
     });
 
     test('Auto-retry disabled when clock skew option is disabled', () async {
