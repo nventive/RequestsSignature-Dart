@@ -26,17 +26,10 @@ steps:
     configFilePath: $(Build.SourcesDirectory)/build/gitversion.yml
   displayName: 'Calculate version'
 
-- script: |
-    echo "The calculated version is $(GitVersion.MajorMinorPatch)"
-  displayName: 'Display Calculated Version'  
-
+# There is currently no other alternatives for setting the app version using gitversion.
 - powershell: |
-    ((Get-Content -Path pubspec.yaml) -replace "{{package_version}}", "$(GitVersion.MajorMinorPatch)") | Set-Content -Path pubspec.yaml
+    ((Get-Content -Path pubspec.yaml) -replace '(version:\s*)[\d\.]+', "version: $(GitVersion.MajorMinorPatch)") | Set-Content -Path pubspec.yaml
   displayName: Replace version powershell command 
-
-- powershell: |
-    ((Get-Content -Path CHANGELOG.md) -replace "{{package_version}}", "$(GitVersion.MajorMinorPatch)") | Set-Content -Path CHANGELOG.md
-  displayName: change version in CHANGELOG.md file
 
 - script :  flutter doctor
   displayName : Run flutter doctor
