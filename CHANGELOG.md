@@ -1,3 +1,4 @@
-## {{package_version}}
+## 0.2.0
 
-- Setup CI pipeline.
+- Implementing `RequestsSignatureInterceptor`.
+- Setup CI pipeline for deployment to dart pub hub.
