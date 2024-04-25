@@ -32,6 +32,8 @@ class RequestsSignatureInterceptor extends Interceptor {
   ///
   /// Optionally, you can provide custom implementations for
   /// [signatureBodySourceBuilder] and [signatureBodySigner].
+  ///
+  /// Optionally, you can provide a custom logic to get the current time via [getTime].
   RequestsSignatureInterceptor(
     this._options,
     this._dioInstance, {
