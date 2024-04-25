@@ -1,10 +1,10 @@
 # RequestsSignature-Dart
 
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](LICENSE) [![Pub Package](https://img.shields.io/pub/v/requests_signature_dart.svg?style=flat-square)](https://pub.dartlang.org/packages/requests_signature_dart) [![package publisher](https://img.shields.io/pub/publisher/requests_signature_dart.svg?style=flat-square)](https://pub.dev/packages/requests_signature_dart/publisher)
+
 Signs and validates HTTP requests.
 
 This projects can help you implements [HMAC](https://en.wikipedia.org/wiki/HMAC) signature to HTTP requests on flutter projects.
-
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 ## Getting Started
 
@@ -28,6 +28,7 @@ Then do the following to add a `RequestsSignatureInterceptor` to your Dio client
 
 ```dart
 import 'package:requests_signature_dart/requests_signature_dart.dart';
+import 'package:requests_signature_dart/src/client/requests_signature_options.dart';
 import 'package:dio/dio.dart';
 
 void main() {
