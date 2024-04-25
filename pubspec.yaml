@@ -2,6 +2,8 @@ name: requests_signature_dart
 description: "A Dart package for making HTTP requests with cryptographic signatures."
 version: 0.9.9 # The version will be overriden in the CI following semantic versioning.
 homepage: https://github.com/nventive/RequestsSignature-Dart
+repository: https://github.com/nventive/RequestsSignature-Dart
+issue_tracker: https://github.com/nventive/RequestsSignature-Dart/issues
 
 environment:
   sdk: '>=2.12.0 <4.0.0'
