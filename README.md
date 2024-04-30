@@ -4,7 +4,9 @@
 
 Signs and validates HTTP requests.
 
-This projects can help you implements [HMAC](https://en.wikipedia.org/wiki/HMAC) signature to HTTP requests on flutter projects.
+This projects can help you implements [HMAC](https://en.wikipedia.org/wiki/HMAC) signatures to HTTP requests on flutter projects.
+
+For backend systems done in .NET, use the [RequestsSignature](https://github.com/nventive/RequestsSignature) library to implement [HMAC](https://en.wikipedia.org/wiki/HMAC) signatures.
 
 ## Getting Started
 
@@ -20,7 +22,7 @@ This will add a line like this to your package's `pubspec.yaml` (and run an impl
 
 ```yaml
 dependencies:
-  request_signature_dart: ^0.0.1
+  requests_signature_dart: ^1.0.0
 ```
 Alternatively, your editor might support `flutter pub get`. Check the docs for your editor to learn more.
 
