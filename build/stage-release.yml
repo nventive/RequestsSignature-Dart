@@ -1,0 +1,20 @@
+steps:
+  - script: flutter pub publish --dry-run
+    displayName: 'Run flutter pub publish --dry-run'
+
+  - task: DownloadSecureFile@1
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), eq(variables['IsReleaseBranch'], 'true'))
+    inputs:
+      secureFile: 'flutter_publisher_gckey.json'
+    name: DownloadGCloudKey
+
+  - script: | 
+      gcloud auth activate-service-account --key-file=$(DownloadGCloudKey.secureFilePath)
+      gcloud auth print-identity-token --audiences=https://pub.dev | dart pub token add https://pub.dev
+      dart pub publish --force
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), eq(variables['IsReleaseBranch'], 'true'))
+    displayName: 'Publish to pub.dev as a nventive publisher'
+
+  - task: PostBuildCleanup@3
+    displayName: 'Post-Build Cleanup: Cleanup files to keep build server clean!'
+    condition: always()
