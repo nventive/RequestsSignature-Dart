@@ -1,6 +1,7 @@
 ## 1.0.1
 
 - Reference .NET library in the README.md.
+- Updated Contributing documentation.
 
 ## 1.0.0
 
