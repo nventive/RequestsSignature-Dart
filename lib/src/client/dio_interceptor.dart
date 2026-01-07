@@ -17,7 +17,7 @@ import 'package:uuid/uuid.dart';
 /// This interceptor signs the outgoing requests with a request signature
 /// before forwarding them to the inner Dio client for processing.
 class RequestsSignatureInterceptor extends Interceptor {
-  Uuid _uuid = const Uuid();
+  final Uuid _uuid = const Uuid();
   final RequestsSignatureOptions _options;
   final Dio _dioInstance;
   final ISignatureBodySourceBuilder _signatureBodySourceBuilder;
@@ -47,14 +47,14 @@ class RequestsSignatureInterceptor extends Interceptor {
         _getTime = getTime;
 
   @override
-  Future onRequest(
+  Future<void> onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
     await _signRequest(options);
     return handler.next(options);
   }
 
   @override
-  void onResponse(Response response, ResponseInterceptorHandler handler) {
+  Future<void> onResponse(Response response, ResponseInterceptorHandler handler) async {
     _validateOptions();
 
     if (!_options.disableAutoRetryOnClockSkew &&
@@ -70,10 +70,12 @@ class RequestsSignatureInterceptor extends Interceptor {
 
       if (((serverDate - now).abs()) > _options.clockSkew.inSeconds) {
         _clockSkew = serverDate - now;
+
         // Re-sign the request with the updated clockskew
-        _signRequest(response.requestOptions);
+        await _signRequest(response.requestOptions);
+
         // Resend the request
-        _resendRequest(response.requestOptions, handler);
+        await _resendRequest(response.requestOptions, handler);
 
         return;
       }

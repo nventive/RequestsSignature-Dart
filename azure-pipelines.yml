@@ -12,7 +12,7 @@ variables:
   value: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]
   
 pool:
-  vmImage: ubuntu-20.04
+  vmImage: ubuntu-24.04
 
 steps:
 
@@ -33,7 +33,15 @@ steps:
 # There is currently no other alternatives for setting the app version using gitversion.
 - powershell: |
     ((Get-Content -Path pubspec.yaml) -replace '(version:\s*)[\d\.]+', "version: $(GitVersion.MajorMinorPatch)") | Set-Content -Path pubspec.yaml
-  displayName: Replace version powershell command 
+  displayName: Replace version powershell command
+
+  # Temporarily commit the updated pubspec.yaml
+- script: |
+    git config user.name "Azure DevOps"
+    git config user.email "devops@example.com"
+    git add pubspec.yaml
+    git commit -m "Update version to $(GitVersion.MajorMinorPatch) for CI"
+  displayName: Commit updated pubspec.yaml
 
 - script :  flutter doctor
   displayName : Run flutter doctor
@@ -62,6 +70,11 @@ steps:
     dart pub publish --force
   condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), eq(variables['IsReleaseBranch'], 'true'))
   displayName: 'Publish to pub.dev as a nventive publisher'
+
+# Reset the repository to its original state
+- script: |
+    git reset --hard HEAD~1
+  displayName: Reset repository to clean state
 
 - task: PostBuildCleanup@3
   displayName: 'Post-Build Cleanup: Cleanup files to keep build server clean!'

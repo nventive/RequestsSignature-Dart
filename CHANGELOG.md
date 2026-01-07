@@ -1,3 +1,9 @@
+## 1.0.2
+
+- Make `onResponse` interceptor method async with proper await handling.
+- Specify explicit `Future<void>` return type for `onRequest` interceptor method.
+- Make `_uuid` field final for immutability.
+
 ## 1.0.1
 
 - Reference .NET library in the README.md.
